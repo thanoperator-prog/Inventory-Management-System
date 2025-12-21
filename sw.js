@@ -1,4 +1,4 @@
-const CACHE_NAME = 'ims-op-dept-v4';
+const CACHE_NAME = 'ims-op-dept-v6';
 
 // Assets to cache immediately
 const PRE_CACHE_ASSETS = [
