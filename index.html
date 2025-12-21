@@ -1395,9 +1395,58 @@
                 });
             };
 
+            const handleBackup = () => {
+                const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(data));
+                const downloadAnchorNode = document.createElement('a');
+                downloadAnchorNode.setAttribute("href", dataStr);
+                downloadAnchorNode.setAttribute("download", "IMS_Backup_" + new Date().toISOString().split('T')[0] + ".json");
+                document.body.appendChild(downloadAnchorNode);
+                downloadAnchorNode.click();
+                downloadAnchorNode.remove();
+                logAction('System', 'Data backup created');
+            };
+
+            const handleRestore = (event) => {
+                const file = event.target.files[0];
+                if (!file) return;
+                
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    try {
+                        const restoredData = JSON.parse(e.target.result);
+                        if (!restoredData.items || !restoredData.users || !restoredData.floors) {
+                            dialogs.showAlert("Invalid backup file format.");
+                            return;
+                        }
+                        dialogs.showConfirm("WARNING: Restoring data will overwrite ALL current inventory and settings. Continue?", () => {
+                            setData(restoredData);
+                            logAction('System', 'Data restored from backup');
+                            dialogs.showAlert("System restored successfully.");
+                        });
+                    } catch (error) {
+                        dialogs.showAlert("Error parsing backup file.");
+                    }
+                };
+                reader.readAsText(file);
+                // Reset input
+                event.target.value = ''; 
+            };
+
+            const handleReset = () => {
+                dialogs.showPrompt("To confirm FACTORY RESET, type 'RESET':", "", (val) => {
+                    if (val === 'RESET') {
+                        setData(INITIAL_DATA);
+                        logAction('System', 'System factory reset');
+                        dialogs.showAlert("System reset to initial state.");
+                    } else if (val) {
+                        dialogs.showAlert("Reset cancelled. Incorrect confirmation.");
+                    }
+                });
+            };
+
             return (
               <div className="space-y-6">
-                <div className="border-b border-gray-200"><nav className="-mb-px flex space-x-8 overflow-x-auto">{['Storage', 'Floor', 'Boxes', 'Accounts', 'Report'].map((tab) => (<button key={tab} onClick={() => setSettingsTab(tab.toLowerCase())} className={`py-4 px-1 border-b-2 font-medium text-sm whitespace-nowrap ${settingsTab === tab.toLowerCase() ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}>{tab} Settings</button>))}</nav></div>
+                <div className="border-b border-gray-200"><nav className="-mb-px flex space-x-8 overflow-x-auto">{['Storage', 'Floor', 'Boxes', 'Accounts', 'Report', 'Backup'].map((tab) => (<button key={tab} onClick={() => setSettingsTab(tab.toLowerCase())} className={`py-4 px-1 border-b-2 font-medium text-sm whitespace-nowrap ${settingsTab === tab.toLowerCase() ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}>{tab} Settings</button>))}</nav></div>
                 <div className="mt-6">
                   {settingsTab === 'storage' && (<div className="space-y-6"><Button onClick={handleAddCategory} className="w-full py-4 border-dashed border-2 bg-gray-50 hover:bg-white text-gray-500 hover:text-indigo-600"><Plus className="mr-2"/> Add New Category</Button>{data.categories.map((cat, idx) => (<Card key={cat.id} className="p-0 overflow-hidden"><div className="bg-gray-50 p-4 border-b border-gray-200 flex justify-between items-center">{editingCat === cat.id ? (<div className="flex gap-2"><input value={tempEditValue} onChange={e => setTempEditValue(e.target.value)} className="border rounded px-2 py-1" autoFocus /><Button size="sm" onClick={() => handleRenameCat(cat.id, tempEditValue)}><Save size={14} className="mr-1"/> Save</Button><Button size="sm" variant="secondary" onClick={() => setEditingCat(null)}>Cancel</Button></div>) : (<div className="flex items-center gap-3"><span className="font-bold text-lg">{cat.name}</span><div className="flex gap-1"><button onClick={() => { setEditingCat(cat.id); setTempEditValue(cat.name); }} className="text-gray-400 hover:text-indigo-600 p-1"><Edit size={16}/></button><button onClick={() => handleDeleteCat(cat.id, cat.name)} className="text-gray-400 hover:text-red-600 p-1"><Trash2 size={16}/></button></div></div>)}<div className="flex gap-2 text-xs"><span className="bg-white px-2 py-1 rounded border">{cat.subs.length} Sub-cats</span></div></div><div className="p-4 space-y-4">{cat.subs.map((sub, sIdx) => (<div key={`${sub}-${sIdx}`} className="border p-4 rounded-lg bg-white shadow-sm"><div className="flex justify-between items-center mb-4 border-b pb-3">{editingSub?.cat === cat.name && editingSub?.sub === sub ? (<div className="flex gap-2"><input value={tempSubValue} onChange={e => setTempSubValue(e.target.value)} className="border rounded px-2 py-1 text-xs" autoFocus /><Button size="sm" onClick={() => handleRenameSub(cat.name, sub, tempSubValue)}><Save size={14} className="mr-1"/> Save</Button><Button size="sm" variant="secondary" onClick={() => setEditingSub(null)}>Cancel</Button></div>) : (<div className="flex items-center gap-2"><span className="font-bold text-gray-700 text-lg">{sub}</span><button onClick={() => { setEditingSub({cat: cat.name, sub}); setTempSubValue(sub); }} className="text-gray-400 hover:text-indigo-600"><Edit size={14}/></button><button onClick={() => handleDeleteSub(cat.name, sub)} className="text-gray-400 hover:text-red-600"><Trash2 size={14}/></button></div>)}<Button size="sm" variant="secondary" onClick={() => setCreatingProduct({cat: cat.name, sub})}><Plus size={14} /> Create Product Card</Button></div>{creatingProduct?.cat === cat.name && creatingProduct?.sub === sub && (<div className="bg-blue-50 p-3 rounded mb-4 flex gap-2 items-center animate-in fade-in"><span className="text-xs font-bold text-blue-700 whitespace-nowrap">New Item Name:</span><input className="flex-1 border border-blue-200 rounded px-2 py-1 text-sm focus:outline-none focus:border-blue-500" placeholder="e.g. LED Panel 500W" autoFocus value={newProductName} onChange={e => setNewProductName(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleCreateProduct(cat.name, sub)} /><Button size="sm" onClick={() => handleCreateProduct(cat.name, sub)}>Create</Button><Button size="sm" variant="ghost" onClick={() => {setCreatingProduct(null); setNewProductName('');}}><X size={14}/></Button></div>)}<div className="space-y-2"><p className="text-[10px] font-bold text-gray-400 uppercase tracking-wide">Registered Items:</p><div className="grid grid-cols-1 md:grid-cols-2 gap-2">{uniqueProducts.filter(p => p.cat === cat.name && p.sub === sub).map((prod, pIdx) => (<div key={pIdx} className="flex justify-between items-center text-sm p-3 bg-gray-50 rounded border border-gray-100 hover:border-gray-300 transition-colors"><span className="font-medium text-gray-700">{prod.name}</span><div className="flex items-center gap-2"><span className="text-xs text-gray-500 bg-white px-2 py-0.5 rounded border">Qty: {data.items.filter(i => i.name === prod.name).length}</span><button title="Rename Product" onClick={() => { dialogs.showPrompt("Rename Product Type:", prod.name, (newName) => { handleRenameProduct(prod.name, newName, cat.name, sub); }); }} className="text-gray-400 hover:text-blue-600 p-1 hover:bg-blue-50 rounded"><Edit size={14}/></button><button title="Delete Product" onClick={() => handleDeleteProduct(prod.name, cat.name, sub)} className="text-gray-400 hover:text-red-600 p-1 hover:bg-red-50 rounded"><Trash2 size={14}/></button></div></div>))}</div>{uniqueProducts.filter(p => p.cat === cat.name && p.sub === sub).length === 0 && (<p className="text-xs text-gray-400 italic p-2 border border-dashed rounded text-center">No products registered yet.</p>)}</div></div>))}<Button size="sm" variant="ghost" className="w-full border border-dashed" onClick={() => handleAddSubCategory(cat.id)}><Plus size={14} className="mr-1"/> Add Sub-Category</Button></div></Card>))}</div>)}
 
@@ -1408,6 +1457,40 @@
                   {settingsTab === 'accounts' && (<div className="space-y-8"><div className="flex justify-between items-center"><h3 className="font-bold text-lg">User Accounts</h3><Button onClick={() => { setEditingUser(null); setShowUserModal(true); }}><Plus size={16}/> Add New User</Button></div>{[ROLES.SUPERVISOR, ROLES.LEAD, ROLES.TRAINER, ROLES.OPERATOR].map((role) => { const usersInRole = data.users.filter(u => u.role === role); if (usersInRole.length === 0) return null; return (<div key={role} className="space-y-3 animate-in fade-in"><h4 className="font-bold text-gray-500 text-xs uppercase tracking-wider border-b border-gray-200 pb-1 mb-2">{role}s</h4><div className="grid grid-cols-1 md:grid-cols-2 gap-4">{usersInRole.map(u => (<UserCard key={u.id} user={u} onEdit={() => { setEditingUser(u); setShowUserModal(true); }} onDelete={handleDeleteUser}/>))}</div></div>); })}{showUserModal && (<UserModal userToEdit={editingUser} onSave={handleSaveUser} onClose={() => setShowUserModal(false)} dialogs={dialogs}/>)}</div>)}
 
                   {settingsTab === 'report' && (<Card><ReportGenerator data={data} /></Card>)}
+
+                  {settingsTab === 'backup' && (
+                        <div className="space-y-6">
+                            <Card className="p-6">
+                                <h3 className="text-lg font-bold mb-4 flex items-center gap-2"><Save size={20} /> Backup & Restore</h3>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <div className="p-4 border rounded bg-gray-50">
+                                        <h4 className="font-bold text-gray-700 mb-2">Export Data</h4>
+                                        <p className="text-xs text-gray-500 mb-4">Download a local copy of the entire database.</p>
+                                        <Button onClick={handleBackup} className="w-full"><Download size={16} /> Download Backup</Button>
+                                    </div>
+                                    <div className="p-4 border rounded bg-gray-50">
+                                        <h4 className="font-bold text-gray-700 mb-2">Import Data</h4>
+                                        <p className="text-xs text-gray-500 mb-4">Restore from a previously saved JSON file.</p>
+                                        <div className="relative">
+                                            <input type="file" accept=".json" onChange={handleRestore} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" />
+                                            <Button variant="secondary" className="w-full"><ArrowUpDown size={16} /> Select Backup File</Button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </Card>
+
+                            <Card className="p-6 border-red-200 bg-red-50">
+                                <h3 className="text-lg font-bold mb-2 text-red-800 flex items-center gap-2"><AlertTriangle size={20} /> Danger Zone</h3>
+                                <div className="flex flex-col md:flex-row justify-between items-center gap-4">
+                                    <div>
+                                        <h4 className="font-bold text-red-900">Factory Reset</h4>
+                                        <p className="text-xs text-red-700">Permanently delete all data and reset to default. This cannot be undone.</p>
+                                    </div>
+                                    <Button onClick={handleReset} variant="danger" className="whitespace-nowrap"><Trash2 size={16} /> Reset System</Button>
+                                </div>
+                            </Card>
+                        </div>
+                    )}
                 </div>
               </div>
             );
