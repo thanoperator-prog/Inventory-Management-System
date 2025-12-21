@@ -37,11 +37,13 @@
         ::-webkit-scrollbar-thumb:hover { background: #a8a8a8; }
         
         @media print {
-            @page { margin: 1cm; size: A4; }
+            @page { margin: 10mm; size: A4; }
             body * { visibility: hidden; }
             .print-preview, .print-preview * { visibility: visible; }
             .print-preview { position: absolute; left: 0; top: 0; width: 100%; border: none; shadow: none; }
             .print-hidden { display: none !important; }
+            .break-inside-avoid { page-break-inside: avoid !important; }
+            tr { page-break-inside: avoid !important; }
         }
 
         .animate-in { animation: fadeIn 0.3s ease-out; }
@@ -310,7 +312,7 @@
             )
         };
 
-        // --- Sub-Components (Defined BEFORE they are used) ---
+        // --- Sub-Components ---
 
         const RoomSwapModal = ({ sourceRoom, data, setData, logAction, onClose, dialogs }) => {
             const [targetRoomId, setTargetRoomId] = useState('');
@@ -383,6 +385,8 @@
 
         const UserModal = ({ userToEdit, onSave, onClose, dialogs }) => {
             const [formData, setFormData] = useState({ username: '', password: '', name: '', role: ROLES.OPERATOR });
+            const [showPassword, setShowPassword] = useState(false);
+
             useEffect(() => { if(userToEdit) setFormData(userToEdit); }, [userToEdit]);
             const handleSave = () => {
                 if(!formData.username || !formData.password || !formData.name) { dialogs.showAlert("Please fill in all fields"); return; }
@@ -394,7 +398,26 @@
                         <h3 className="text-xl font-bold mb-4">{userToEdit ? 'Edit User' : 'Add New User'}</h3>
                         <Input label="Full Name" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} />
                         <Input label="Username" value={formData.username} onChange={e => setFormData({...formData, username: e.target.value})} />
-                        <Input label="Password" type="password" value={formData.password} onChange={e => setFormData({...formData, password: e.target.value})} />
+                        
+                        <div className="mb-4">
+                            <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Password</label>
+                            <div className="relative">
+                                <input 
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm pr-10" 
+                                    type={showPassword ? "text" : "password"} 
+                                    value={formData.password} 
+                                    onChange={e => setFormData({...formData, password: e.target.value})} 
+                                />
+                                <button 
+                                    type="button" 
+                                    onClick={() => setShowPassword(!showPassword)} 
+                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                                >
+                                    {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                                </button>
+                            </div>
+                        </div>
+
                         <Select label="Role" value={formData.role} onChange={e => setFormData({...formData, role: e.target.value})} options={Object.values(ROLES).map(r => ({ label: r, value: r }))} />
                         <div className="flex justify-end gap-2 mt-6">
                             <Button variant="secondary" onClick={onClose}>Cancel</Button>
@@ -779,7 +802,14 @@
             const handleDownloadPDF = () => {
                 const element = document.getElementById('report-content');
                 if (window.html2pdf) {
-                    const opt = { margin: 10, filename: `IMS_Report_${new Date().toISOString().split('T')[0]}.pdf`, image: { type: 'jpeg', quality: 0.98 }, html2canvas: { scale: 2, useCORS: true }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } };
+                    const opt = { 
+                        margin: 10, 
+                        filename: `IMS_Report_${new Date().toISOString().split('T')[0]}.pdf`, 
+                        image: { type: 'jpeg', quality: 0.98 }, 
+                        html2canvas: { scale: 2, useCORS: true }, 
+                        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+                        pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
+                    };
                     window.html2pdf().set(opt).from(element).save();
                 } else {
                     alert("PDF Generator is loading...");
@@ -802,17 +832,17 @@
                         <Button size="lg" onClick={handleDownloadPDF} className="shadow-md bg-indigo-600 hover:bg-indigo-700 text-white"><Download className="mr-2" size={18} /> Generate PDF</Button>
                     </div>
                     <div id="report-content" className="print-preview max-w-5xl mx-auto text-left bg-white p-4">
-                        <div className="flex justify-between items-end border-b-2 border-gray-900 pb-4 mb-8">
+                        <div className="flex justify-between items-end border-b-2 border-gray-900 pb-4 mb-8 break-inside-avoid">
                             <div><h1 className="text-4xl font-black text-gray-900 tracking-tight uppercase">Inventory Report</h1><p className="text-gray-500 font-medium mt-1 uppercase tracking-widest text-xs">Filter: {reportFilter} • Generated: {new Date().toLocaleDateString('en-US', { timeZone: 'Asia/Manila' })}</p></div>
                             <div className="text-right"><h2 className="text-xl font-bold text-gray-400">IMS</h2><p className="text-xs text-gray-400">Operation Department</p></div>
                         </div>
-                        <div className="grid grid-cols-4 gap-4 mb-4">
+                        <div className="grid grid-cols-4 gap-4 mb-4 break-inside-avoid">
                             <div className="p-4 bg-gray-50 border rounded-lg text-center"><p className="text-xs font-bold text-gray-500 uppercase">Total Assets</p><p className="text-2xl font-black text-gray-900">{stats.total}</p></div>
                             <div className="p-4 bg-green-50 border border-green-100 rounded-lg text-center"><p className="text-xs font-bold text-green-700 uppercase">Active</p><p className="text-2xl font-black text-green-700">{stats.active}</p></div>
                             <div className="p-4 bg-red-50 border border-red-100 rounded-lg text-center"><p className="text-xs font-bold text-red-700 uppercase">Defective</p><p className="text-2xl font-black text-red-700">{stats.defective}</p></div>
                             <div className="p-4 bg-orange-50 border border-orange-100 rounded-lg text-center"><p className="text-xs font-bold text-orange-700 uppercase">Disposal</p><p className="text-2xl font-black text-orange-700">{stats.pullout}</p></div>
                         </div>
-                        <div className="grid grid-cols-4 gap-4 mb-8">
+                        <div className="grid grid-cols-4 gap-4 mb-8 break-inside-avoid">
                              <div className="p-3 bg-gray-50 border rounded text-center"><p className="text-[10px] font-bold text-gray-400 uppercase">Total Rooms</p><p className="text-xl font-bold text-gray-800">{stats.totalRooms}</p></div>
                              <div className="p-3 bg-blue-50 border border-blue-100 rounded text-center"><p className="text-[10px] font-bold text-blue-400 uppercase">Occupied</p><p className="text-xl font-bold text-blue-700">{stats.occupiedRooms}</p></div>
                              <div className="p-3 bg-green-50 border border-green-100 rounded text-center"><p className="text-[10px] font-bold text-green-400 uppercase">Vacant</p><p className="text-xl font-bold text-green-700">{stats.vacantRooms}</p></div>
@@ -822,13 +852,13 @@
                             <h3 className="font-bold text-white bg-gray-900 px-4 py-2 uppercase tracking-wider text-sm rounded-t-lg">A. Storage Inventory</h3>
                             <div className="border border-t-0 rounded-b-lg p-4 bg-white">
                                 {Object.keys(storageGrouped).length === 0 ? <p className="text-gray-400 text-sm italic">No items.</p> : Object.keys(storageGrouped).map(cat => (
-                                    <div key={cat} className="mb-6 last:mb-0"><h4 className="font-bold text-indigo-700 border-b border-indigo-100 pb-1 mb-2 text-sm">{cat}</h4>
+                                    <div key={cat} className="mb-6 last:mb-0 break-inside-avoid"><h4 className="font-bold text-indigo-700 border-b border-indigo-100 pb-1 mb-2 text-sm">{cat}</h4>
                                         {Object.keys(storageGrouped[cat]).map(sub => {
                                             const items = storageGrouped[cat][sub];
                                             const counts = items.reduce((acc, i) => { acc[i.name] = (acc[i.name] || 0) + 1; return acc; }, {});
                                             return (
-                                                <div key={sub} className="mb-4 ml-4"><h5 className="font-semibold text-xs text-gray-600 uppercase tracking-wide mb-2">{sub}</h5>
-                                                    <table className="w-full text-xs text-left"><thead><tr className="bg-gray-50 text-gray-500 border-b"><th className="py-1 px-2">Item Name</th><th className="py-1 px-2 text-right">Quantity</th></tr></thead><tbody>{Object.entries(counts).map(([name, count]) => <tr key={name} className="border-b border-gray-100"><td className="py-1 px-2">{name}</td><td className="py-1 px-2 text-right font-mono font-bold">{count}</td></tr>)}</tbody></table>
+                                                <div key={sub} className="mb-4 ml-4 break-inside-avoid"><h5 className="font-semibold text-xs text-gray-600 uppercase tracking-wide mb-2">{sub}</h5>
+                                                    <table className="w-full text-xs text-left"><thead><tr className="bg-gray-50 text-gray-500 border-b"><th className="py-1 px-2">Item Name</th><th className="py-1 px-2 text-right">Quantity</th></tr></thead><tbody>{Object.entries(counts).map(([name, count]) => <tr key={name} className="border-b border-gray-100 break-inside-avoid"><td className="py-1 px-2">{name}</td><td className="py-1 px-2 text-right font-mono font-bold">{count}</td></tr>)}</tbody></table>
                                                 </div>
                                             );
                                         })}
@@ -836,9 +866,9 @@
                                 ))}
                             </div>
                         </div>
-                         <div className="mb-10 break-inside-avoid"><h3 className="font-bold text-white bg-gray-900 px-4 py-2 uppercase tracking-wider text-sm rounded-t-lg">B. Room Allocations</h3><div className="border border-t-0 rounded-b-lg p-4 bg-white">{Object.keys(roomGrouped).length === 0 ? <p className="text-gray-400 text-sm italic">No items.</p> : Object.keys(roomGrouped).map(floor => (<div key={floor} className="mb-6 last:mb-0"><h4 className="font-bold text-indigo-700 border-b border-indigo-100 pb-1 mb-2 text-sm">{floor}</h4><div className="grid grid-cols-2 gap-4">{roomGrouped[floor].map(({ room, items }) => (<div key={room.id} className="border rounded p-3 break-inside-avoid"><div className="flex justify-between items-center mb-2 border-b pb-1"><span className="font-bold text-sm">{room.name}</span><span className="text-[10px] text-gray-400 font-mono">{room.id}</span></div><ul className="text-xs space-y-1">{items.map(item => (<li key={item.id} className="flex justify-between"><span>{item.name}</span><span className="text-gray-500">{item.id}</span></li>))}</ul></div>))}</div></div>))}</div></div>
+                         <div className="mb-10 break-inside-avoid"><h3 className="font-bold text-white bg-gray-900 px-4 py-2 uppercase tracking-wider text-sm rounded-t-lg">B. Room Allocations</h3><div className="border border-t-0 rounded-b-lg p-4 bg-white">{Object.keys(roomGrouped).length === 0 ? <p className="text-gray-400 text-sm italic">No items.</p> : Object.keys(roomGrouped).map(floor => (<div key={floor} className="mb-6 last:mb-0 break-inside-avoid"><h4 className="font-bold text-indigo-700 border-b border-indigo-100 pb-1 mb-2 text-sm">{floor}</h4><div className="grid grid-cols-2 gap-4">{roomGrouped[floor].map(({ room, items }) => (<div key={room.id} className="border rounded p-3 break-inside-avoid"><div className="flex justify-between items-center mb-2 border-b pb-1"><span className="font-bold text-sm">{room.name}</span><span className="text-[10px] text-gray-400 font-mono">{room.id}</span></div><ul className="text-xs space-y-1">{items.map(item => (<li key={item.id} className="flex justify-between"><span>{item.name}</span><span className="text-gray-500">{item.id}</span></li>))}</ul></div>))}</div></div>))}</div></div>
                          <div className="mb-10 break-inside-avoid"><h3 className="font-bold text-white bg-gray-900 px-4 py-2 uppercase tracking-wider text-sm rounded-t-lg">C. Box Allocations</h3><div className="border border-t-0 rounded-b-lg p-4 bg-white">{boxGrouped.length === 0 ? <p className="text-gray-400 text-sm italic">No items.</p> : <div className="grid grid-cols-3 gap-4">{boxGrouped.map(({ box, items }) => (<div key={box.id} className="border rounded p-3 break-inside-avoid"><div className="flex justify-between items-center mb-2 border-b pb-1 bg-orange-50 -m-3 p-3 rounded-t"><span className="font-bold text-sm text-orange-900">{box.name}</span><span className="text-[10px] text-orange-400 font-mono">{box.id}</span></div><ul className="text-xs space-y-1 mt-3">{items.map(item => (<li key={item.id} className="flex justify-between"><span>{item.name}</span><span className="font-mono text-gray-400">{item.id}</span></li>))}</ul></div>))}</div>}</div></div>
-                        <div className="mt-12 flex justify-between text-xs text-gray-400 pt-8 border-t border-gray-200"><div><p className="mb-6">Prepared By: ___________________________</p><p>Date: ___________________________</p></div><div><p className="mb-6">Verified By: ___________________________</p><p>Date: ___________________________</p></div></div>
+                        <div className="mt-12 flex justify-between text-xs text-gray-400 pt-8 border-t border-gray-200 break-inside-avoid"><div><p className="mb-6">Prepared By: ___________________________</p><p>Date: ___________________________</p></div><div><p className="mb-6">Verified By: ___________________________</p><p>Date: ___________________________</p></div></div>
                     </div>
                 </div>
             );
@@ -1386,11 +1416,20 @@
         // --- Main App Component ---
 
         const InventoryApp = () => {
-          const [user, setUser] = useState(null);
+          const [user, setUser] = useState(() => {
+              const savedUser = localStorage.getItem('ims_user_v1');
+              return savedUser ? JSON.parse(savedUser) : null;
+          });
+          
           const [activeTab, setActiveTab] = useState('dashboard');
           const [showProfileModal, setShowProfileModal] = useState(false);
           
           const [dialogState, setDialogState] = useState({ isOpen: false, type: 'alert', message: '', defaultValue: '', onConfirm: () => {} });
+
+          useEffect(() => {
+              if (user) localStorage.setItem('ims_user_v1', JSON.stringify(user));
+              else localStorage.removeItem('ims_user_v1');
+          }, [user]);
 
           const dialogs = useMemo(() => ({
               showAlert: (msg) => setDialogState({ isOpen: true, type: 'alert', message: msg, onConfirm: () => setDialogState(prev => ({...prev, isOpen: false})) }),
@@ -1401,7 +1440,7 @@
           const [managingContent, setManagingContent] = useState(null); 
 
           const [data, setData] = useState(() => {
-            const saved = localStorage.getItem('inventoryDataV27'); // Updated version
+            const saved = localStorage.getItem('inventoryDataV27'); 
             if (saved) return JSON.parse(saved);
             return INITIAL_DATA;
           });
@@ -1423,12 +1462,6 @@
 
           const handleLogin = (loggedInUser) => {
              setUser(loggedInUser);
-             // Log the login action. We access the current data logs here via functional update or direct access if needed, but setState is async.
-             // Best to use the logAction helper which uses functional update.
-             // We pass 'System' or the user name as override if user state isn't set yet, but logAction uses user?.name.
-             // Since setUser is async, user might not be set yet inside logAction.
-             // We can manually add the log or update logAction to accept a user override.
-             // Let's manually update data for login to be safe and immediate.
              const newLog = { id: Date.now(), timestamp: new Date().toISOString(), user: loggedInUser.name, action: 'Login', details: `User ${loggedInUser.username} logged in` };
              setData(prev => ({ ...prev, logs: [newLog, ...prev.logs] }));
           };
@@ -1445,7 +1478,10 @@
             <div className="min-h-screen bg-gray-100 font-sans flex text-gray-800">
               {/* Sidebar */}
               <aside className="hidden lg:flex flex-col w-64 bg-white border-r border-gray-200 fixed h-full z-10 print-hidden">
-                <div className="p-6 flex items-center gap-3 border-b border-gray-100"><div className="bg-indigo-600 p-2 rounded-lg"><Package className="w-6 h-6 text-white" /></div><div><h1 className="font-bold text-gray-900 leading-tight">IMS</h1><p className="text-[10px] text-gray-400 font-medium">V10.7 ENTERPRISE</p></div></div>
+                <div className="p-6 flex items-center gap-3 border-b border-gray-100">
+                    <img src="https://cdn-icons-png.flaticon.com/512/4303/4303033.png" className="w-10 h-10 object-contain" alt="IMS Logo" />
+                    <div><h1 className="font-bold text-gray-900 leading-tight">IMS</h1><p className="text-[10px] text-gray-400 font-medium">V10.7 ENTERPRISE</p></div>
+                </div>
                 <nav className="flex-1 py-6 space-y-1">
                   <NavItem id="dashboard" label="Dashboard" icon={LayoutDashboard} />
                   <NavItem id="storage" label="Inventory" icon={Package} />
