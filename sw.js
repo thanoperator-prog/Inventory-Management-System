@@ -1,4 +1,4 @@
-const CACHE_NAME = 'ims-op-dept-v1';
+const CACHE_NAME = 'ims-op-dept-v2'; // Bumped version
 
 // Assets to cache immediately
 const PRE_CACHE_ASSETS = [
@@ -12,7 +12,7 @@ const PRE_CACHE_ASSETS = [
     'https://unpkg.com/lucide@latest',
     'https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js',
     // Icons
-    'https://cdn-icons-png.flaticon.com/512/2897/2897785.png'
+    'https://cdn-icons-png.flaticon.com/512/4303/4303033.png'
 ];
 
 // Install Event: Cache core assets
