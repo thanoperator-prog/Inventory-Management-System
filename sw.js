@@ -1,4 +1,4 @@
-const CACHE_NAME = 'ims-op-dept-v2'; // Bumped version
+const CACHE_NAME = 'ims-op-dept-v3';
 
 // Assets to cache immediately
 const PRE_CACHE_ASSETS = [
@@ -46,33 +46,23 @@ self.addEventListener('activate', (event) => {
 });
 
 // Fetch Event: Network First, falling back to Cache
-// This strategy ensures fresh data for the app logic but works offline
 self.addEventListener('fetch', (event) => {
     event.respondWith(
         fetch(event.request)
             .then((response) => {
-                // Check if we received a valid response
                 if (!response || response.status !== 200 || response.type !== 'basic') {
-                    // For cross-origin requests (CDNs), response.type might be 'cors' or 'opaque'
-                    // We still want to cache valid CDN responses
                     if (response.type === 'opaque') return response; 
                 }
-
-                // Clone the response
                 const responseToCache = response.clone();
-
                 caches.open(CACHE_NAME)
                     .then((cache) => {
-                        // Only cache http/https requests
                         if (event.request.url.startsWith('http')) {
                             cache.put(event.request, responseToCache);
                         }
                     });
-
                 return response;
             })
             .catch(() => {
-                // If network fails, try to serve from cache
                 return caches.match(event.request);
             })
     );
