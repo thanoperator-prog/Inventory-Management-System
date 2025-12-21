@@ -369,9 +369,23 @@
                             <label className="block text-sm font-bold text-gray-700 mb-2">Select Target Room:</label>
                             <select className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-indigo-500 outline-none" value={targetRoomId} onChange={(e) => setTargetRoomId(e.target.value)}>
                                 <option value="">-- Select Room to Swap With --</option>
-                                {data.floors.flatMap(f => f.rooms.filter(r => r.id !== sourceRoom.id).map(r => (
-                                    <option key={r.id} value={r.id}>{f.code} - {r.name} ({r.status})</option>
-                                )))}
+                                {data.floors.map(floor => {
+                                    const floorRooms = floor.rooms
+                                        .filter(r => r.id !== sourceRoom.id)
+                                        .sort((a, b) => a.id.localeCompare(b.id, undefined, { numeric: true }));
+                                    
+                                    if (floorRooms.length === 0) return null;
+
+                                    return (
+                                        <optgroup key={floor.id} label={`${floor.name} (${floor.code})`}>
+                                            {floorRooms.map(r => (
+                                                <option key={r.id} value={r.id}>
+                                                    [{r.id}] {r.name} ({r.status})
+                                                </option>
+                                            ))}
+                                        </optgroup>
+                                    );
+                                })}
                             </select>
                         </div>
                         <div className="flex justify-end gap-2">
