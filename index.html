@@ -2,1676 +2,1029 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>IMS - Inventory Management System</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Family Feud Game Show</title>
     
-    <!-- PWA Manifest & Icons -->
+    <!-- PWA Meta Tags -->
+    <meta name="theme-color" content="#172554">
+    <meta name="description" content="A customizable Family Feud style game for parties and events.">
     <link rel="manifest" href="manifest.json">
-    <meta name="theme-color" content="#4f46e5">
-    
-    <!-- Default Favicon -->
-    <link rel="icon" type="image/png" href="./icon-512.png">
-    <!-- iOS / Apple Touch Icon -->
-    <link rel="apple-touch-icon" href="./icon-512.png">
-    
-    <!-- React & ReactDOM -->
-    <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
-    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
-    
-    <!-- Babel for JSX -->
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    
+    <link rel="apple-touch-icon" href="icon-192.png">
+
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    
-    <!-- Lucide Icons (Vanilla JS version) -->
+    <!-- Lucide Icons -->
     <script src="https://unpkg.com/lucide@latest"></script>
-
-    <!-- html2pdf.js -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
-
+    
     <style>
-        ::-webkit-scrollbar { width: 8px; height: 8px; }
-        ::-webkit-scrollbar-track { background: #f1f1f1; }
-        ::-webkit-scrollbar-thumb { background: #c7c7c7; border-radius: 4px; }
-        ::-webkit-scrollbar-thumb:hover { background: #a8a8a8; }
+        /* Custom Animations */
+        @keyframes flip-in {
+            0% { transform: rotateX(-90deg); opacity: 0; }
+            100% { transform: rotateX(0); opacity: 1; }
+        }
+        .animate-flip-in {
+            animation: flip-in 0.6s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+        }
         
-        @media print {
-            @page { margin: 10mm; size: A4; }
-            body * { visibility: hidden; }
-            .print-preview, .print-preview * { visibility: visible; }
-            .print-preview { position: absolute; left: 0; top: 0; width: 100%; border: none; shadow: none; }
-            .print-hidden { display: none !important; }
-            .break-inside-avoid { page-break-inside: avoid !important; }
-            tr { page-break-inside: avoid !important; }
+        @keyframes pulse-slow {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.8; }
+        }
+        .animate-pulse-slow {
+            animation: pulse-slow 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
         }
 
-        .animate-in { animation: fadeIn 0.3s ease-out; }
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(5px); }
-            to { opacity: 1; transform: translateY(0); }
+        .text-stroke-white {
+            -webkit-text-stroke: 1px white;
+        }
+        @media (min-width: 768px) {
+            .text-stroke-white {
+                -webkit-text-stroke: 2px white;
+            }
+        }
+        
+        .text-shadow-sm {
+            text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+        }
+
+        /* Hide Scrollbar but keep functionality */
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+        
+        /* Custom Scrollbar for Settings */
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 8px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #1e293b; 
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #475569; 
+            border-radius: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: #64748b; 
         }
     </style>
 </head>
-<body class="bg-gray-100 text-gray-800 antialiased">
-    <div id="root"></div>
+<body class="bg-blue-950 text-white font-sans selection:bg-yellow-500 selection:text-blue-900 overflow-x-hidden touch-manipulation">
 
-    <!-- Service Worker Registration -->
+    <!-- App Container -->
+    <div id="app" class="min-h-screen relative flex flex-col pb-safe">
+        <!-- Content will be injected here by JavaScript -->
+    </div>
+
+    <!-- Modal Container -->
+    <div id="modal-container" class="hidden fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-md p-4 animate-fade-in">
+        <div class="bg-slate-900 border-2 md:border-4 border-yellow-500 rounded-2xl p-6 md:p-8 max-w-md w-full shadow-2xl transform scale-100">
+            <h3 id="modal-title" class="text-xl md:text-2xl font-bold text-white mb-4 flex items-center gap-3">
+                <!-- Icon and Title injected here -->
+            </h3>
+            <p id="modal-message" class="text-slate-300 text-base md:text-lg mb-8 leading-relaxed"></p>
+            <div class="flex gap-4 justify-end">
+                <button id="modal-cancel" class="flex-1 md:flex-none px-4 py-3 rounded-lg bg-slate-700 hover:bg-slate-600 text-white font-bold transition-transform active:scale-95">Cancel</button>
+                <button id="modal-confirm" class="flex-1 md:flex-none px-4 py-3 rounded-lg bg-yellow-500 hover:bg-yellow-400 text-blue-900 font-black transition-transform active:scale-95 shadow-lg">Confirm</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Feedback Overlay (Ting/X) -->
+    <div id="feedback-container" class="hidden fixed inset-0 z-50 flex items-center justify-center pointer-events-none bg-black/40 backdrop-blur-sm p-4">
+        <!-- Content injected here -->
+    </div>
+
     <script>
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('./service-worker.js')
-                    .then(registration => {
-                        console.log('ServiceWorker registration successful with scope: ', registration.scope);
-                    })
-                    .catch(err => {
-                        console.log('ServiceWorker registration failed: ', err);
-                    });
-            });
-        }
-    </script>
-
-    <script type="text/babel">
-        const { useState, useEffect, useMemo, useCallback } = React;
-
-        // --- Icon Component Wrapper (Fixed for Lucide CDN) ---
-        const Icon = ({ name, size = 24, className, ...props }) => {
-            const iconData = lucide.icons[name];
-            
-            if (!iconData) {
-                console.warn(`Icon "${name}" not found`);
-                return null;
+        // --- INITIAL DATA ---
+        const INITIAL_GAME_DATA = [
+            {
+                question: "Give a reason why a student is absent",
+                answers: [
+                    { text: "Sick / Fever", points: 35 },
+                    { text: "Overslept", points: 25 },
+                    { text: "No Allowance", points: 15 },
+                    { text: "Traffic", points: 10 },
+                    { text: "Raining / Flood", points: 8 },
+                    { text: "Skipping Class", points: 7 }
+                ]
+            },
+            {
+                question: "Common breakfast items",
+                answers: [
+                    { text: "Eggs / Scrambled", points: 30 },
+                    { text: "Fried Rice", points: 25 },
+                    { text: "Hotdog", points: 15 },
+                    { text: "Dried Fish", points: 12 },
+                    { text: "Bread / Pandesal", points: 10 },
+                    { text: "Bacon / Meat", points: 8 }
+                ]
+            },
+            {
+                question: "Where do friends usually hang out?",
+                answers: [
+                    { text: "Mall / Shopping", points: 40 },
+                    { text: "Cinema", points: 20 },
+                    { text: "Friend's House", points: 15 },
+                    { text: "Cafe / Coffee Shop", points: 10 },
+                    { text: "Park", points: 8 },
+                    { text: "Fast Food", points: 7 }
+                ]
             }
-
-            // Render SVG manually using the icon definition array
-            return (
-                <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    width={size}
-                    height={size}
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    className={className}
-                    {...props}
-                >
-                    {iconData.map(([tag, attrs], index) => (
-                        React.createElement(tag, { ...attrs, key: index })
-                    ))}
-                </svg>
-            );
-        };
-
-        // Icons mapping
-        const LayoutDashboard = (p) => <Icon name="LayoutDashboard" {...p} />;
-        const Package = (p) => <Icon name="Package" {...p} />;
-        const Layers = (p) => <Icon name="Layers" {...p} />;
-        const Box = (p) => <Icon name="Box" {...p} />;
-        const History = (p) => <Icon name="History" {...p} />;
-        const Settings = (p) => <Icon name="Settings" {...p} />;
-        const LogOut = (p) => <Icon name="LogOut" {...p} />;
-        const Search = (p) => <Icon name="Search" {...p} />;
-        const Plus = (p) => <Icon name="Plus" {...p} />;
-        const Trash2 = (p) => <Icon name="Trash2" {...p} />;
-        const Edit = (p) => <Icon name="Edit" {...p} />;
-        const ChevronDown = (p) => <Icon name="ChevronDown" {...p} />;
-        const ChevronRight = (p) => <Icon name="ChevronRight" {...p} />;
-        const Menu = (p) => <Icon name="Menu" {...p} />;
-        const X = (p) => <Icon name="X" {...p} />;
-        const User = (p) => <Icon name="User" {...p} />;
-        const Shield = (p) => <Icon name="Shield" {...p} />;
-        const ArrowUpDown = (p) => <Icon name="ArrowUpDown" {...p} />;
-        const Printer = (p) => <Icon name="Printer" {...p} />;
-        const CheckCircle = (p) => <Icon name="CheckCircle" {...p} />;
-        const AlertTriangle = (p) => <Icon name="AlertTriangle" {...p} />;
-        const ArrowRightLeft = (p) => <Icon name="ArrowRightLeft" {...p} />;
-        const Eye = (p) => <Icon name="Eye" {...p} />;
-        const EyeOff = (p) => <Icon name="EyeOff" {...p} />;
-        const CheckSquare = (p) => <Icon name="CheckSquare" {...p} />;
-        const Square = (p) => <Icon name="Square" {...p} />;
-        const AlertOctagon = (p) => <Icon name="AlertOctagon" {...p} />;
-        const Truck = (p) => <Icon name="Truck" {...p} />;
-        const Download = (p) => <Icon name="Download" {...p} />;
-        const FileText = (p) => <Icon name="FileText" {...p} />;
-        const Save = (p) => <Icon name="Save" {...p} />;
-        const XCircle = (p) => <Icon name="XCircle" {...p} />;
-        const Archive = (p) => <Icon name="Archive" {...p} />;
-        const Activity = (p) => <Icon name="Activity" {...p} />;
-        const Users = (p) => <Icon name="Users" {...p} />;
-        const Key = (p) => <Icon name="Key" {...p} />;
-        const Filter = (p) => <Icon name="Filter" {...p} />;
-        const LayoutGrid = (p) => <Icon name="LayoutGrid" {...p} />;
-
-        // --- Constants & Helpers ---
-
-        const ROLES = {
-            SUPERVISOR: 'Technical Support Supervisor',
-            LEAD: 'Live Operator Lead',
-            TRAINER: 'Live Operator Trainer',
-            OPERATOR: 'Live Operator'
-        };
-
-        const ADMIN_ROLES = [ROLES.SUPERVISOR, ROLES.LEAD, ROLES.TRAINER];
-
-        const DEFAULT_USERS = [
-            { id: 'u1', username: 'admin', password: '123', role: ROLES.SUPERVISOR, name: 'System Admin' },
         ];
 
-        const INITIAL_DATA = {
-            users: DEFAULT_USERS,
-            categories: [], 
-            floors: [],     
-            boxes: [],      
-            items: [],      
-            logs: [
-                { id: 1, timestamp: new Date().toISOString(), user: 'System', action: 'System Reset', details: 'Application data cleared for fresh start' }
-            ]
+        const INITIAL_FAST_MONEY_DATA = [
+            {
+                question: "Name a fruit you eat with the skin on",
+                answers: [
+                    { text: "Apple", points: 40 },
+                    { text: "Grape", points: 30 },
+                    { text: "Pear", points: 15 },
+                    { text: "Peach", points: 10 },
+                    { text: "Plum", points: 5 }
+                ]
+            },
+            {
+                question: "Name something people lose",
+                answers: [
+                    { text: "Keys", points: 35 },
+                    { text: "Phone", points: 20 },
+                    { text: "Wallet/Purse", points: 15 },
+                    { text: "Glasses", points: 10 },
+                    { text: "Remote", points: 5 }
+                ]
+            },
+            {
+                question: "A job that requires a lot of standing",
+                answers: [
+                    { text: "Teacher", points: 30 },
+                    { text: "Security Guard", points: 25 },
+                    { text: "Chef/Cook", points: 20 },
+                    { text: "Cashier", points: 15 },
+                    { text: "Nurse", points: 10 }
+                ]
+            },
+            {
+                question: "Name a type of bear",
+                answers: [
+                    { text: "Grizzly/Brown", points: 40 },
+                    { text: "Polar", points: 30 },
+                    { text: "Panda", points: 15 },
+                    { text: "Teddy", points: 10 },
+                    { text: "Black Bear", points: 5 }
+                ]
+            },
+            {
+                question: "Something you buy by the roll",
+                answers: [
+                    { text: "Toilet Paper", points: 50 },
+                    { text: "Paper Towels", points: 25 },
+                    { text: "Tape", points: 15 },
+                    { text: "Wrapping Paper", points: 5 },
+                    { text: "Aluminum Foil", points: 5 }
+                ]
+            }
+        ];
+
+        // --- GLOBAL STATE ---
+        const store = {
+            gameData: JSON.parse(JSON.stringify(INITIAL_GAME_DATA)),
+            fastMoneyData: JSON.parse(JSON.stringify(INITIAL_FAST_MONEY_DATA)),
+            currentRoundIndex: 0,
+            phase: 'intro', 
+            scores: { teamA: 0, teamB: 0 },
+            teamNames: { teamA: "TEAM A", teamB: "TEAM B" },
+            roundScore: 0,
+            strikes: 0,
+            revealedAnswers: [],
+            currentTeam: null,
+            fastMoneyWinner: null,
+            faceOffTurn: null,
+            faceOffData: { teamA: null, teamB: null },
+            
+            // Fast Money Specific
+            fmTimer: 0,
+            isTimerRunning: false,
+            timerInterval: null,
+            fmAnswers: {
+                p1: ['', '', '', '', ''],
+                p2: ['', '', '', '', ''],
+                p1Points: [null, null, null, null, null],
+                p2Points: [null, null, null, null, null],
+                total: 0
+            },
+            // Settings
+            settingsTab: 'main',
+            editingRoundIndex: null,
+            tempRoundData: null
         };
 
-        const generateId = (itemName, existingItems) => {
-            const words = itemName.split(' ');
-            let prefix = '';
-            if (words.length >= 2) {
-                prefix = (words[0][0] + words[1][0]).toUpperCase();
+        // --- DOM ELEMENTS ---
+        const app = document.getElementById('app');
+        const modalContainer = document.getElementById('modal-container');
+        const modalTitle = document.getElementById('modal-title');
+        const modalMessage = document.getElementById('modal-message');
+        const modalConfirmBtn = document.getElementById('modal-confirm');
+        const modalCancelBtn = document.getElementById('modal-cancel');
+        const feedbackContainer = document.getElementById('feedback-container');
+
+        // --- SOUND / FEEDBACK LOGIC ---
+        function playSound(type) {
+            feedbackContainer.classList.remove('hidden');
+            if (type === 'correct') {
+                feedbackContainer.innerHTML = `<div class="text-green-400 text-6xl md:text-9xl font-black drop-shadow-[0_0_50px_rgba(74,222,128,1)] animate-bounce text-stroke-white text-center">TING!</div>`;
+            } else if (type === 'wrong') {
+                feedbackContainer.innerHTML = `<div class="text-red-500 text-8xl md:text-[12rem] font-black drop-shadow-[0_0_50px_rgba(239,68,68,1)] animate-pulse text-center">X</div>`;
+            }
+            setTimeout(() => {
+                feedbackContainer.classList.add('hidden');
+                feedbackContainer.innerHTML = '';
+            }, 1000);
+        }
+
+        // --- MODAL LOGIC ---
+        function showModal(message, onConfirm, isAlert = false) {
+            modalTitle.innerHTML = isAlert 
+                ? `<i data-lucide="alert-circle" class="text-yellow-500 w-6 h-6 md:w-8 md:h-8"></i> Notice`
+                : `<i data-lucide="alert-circle" class="text-blue-400 w-6 h-6 md:w-8 md:h-8"></i> Confirmation`;
+            
+            modalMessage.textContent = message;
+            modalConfirmBtn.textContent = isAlert ? "OK" : "Confirm";
+            modalCancelBtn.style.display = isAlert ? 'none' : 'block';
+            
+            modalContainer.classList.remove('hidden');
+            lucide.createIcons();
+
+            modalConfirmBtn.onclick = () => {
+                modalContainer.classList.add('hidden');
+                if (onConfirm) onConfirm();
+            };
+            modalCancelBtn.onclick = () => {
+                modalContainer.classList.add('hidden');
+            };
+        }
+
+        // --- TIMER LOGIC ---
+        function startTimer() {
+            if (store.isTimerRunning) return;
+            store.isTimerRunning = true;
+            renderFastMoneyInput(store.phase === 'fast-money-p1' ? 'p1' : 'p2'); 
+
+            store.timerInterval = setInterval(() => {
+                if (store.fmTimer > 0) {
+                    store.fmTimer--;
+                    const timerDisplay = document.getElementById('timer-display');
+                    if (timerDisplay) {
+                        timerDisplay.innerText = store.fmTimer + "s";
+                        if(store.fmTimer <= 5) timerDisplay.classList.add('text-red-500', 'animate-pulse');
+                    }
+                } else {
+                    stopTimer();
+                    playSound('wrong');
+                }
+            }, 1000);
+        }
+
+        function stopTimer() {
+            store.isTimerRunning = false;
+            clearInterval(store.timerInterval);
+            renderFastMoneyInput(store.phase === 'fast-money-p1' ? 'p1' : 'p2'); 
+        }
+
+        function toggleTimer() {
+            if (store.isTimerRunning) stopTimer();
+            else startTimer();
+        }
+
+        // --- CORE GAME ACTIONS ---
+        function startGame() {
+            if (store.gameData.length === 0) return showModal("Please add at least one round in settings!", null, true);
+            if (!store.teamNames.teamA.trim() || !store.teamNames.teamB.trim()) return showModal("Please enter team names!", null, true);
+            
+            store.scores = { teamA: 0, teamB: 0 };
+            store.fmAnswers = { p1: ['', '', '', '', ''], p2: ['', '', '', '', ''], p1Points: [null, null, null, null, null], p2Points: [null, null, null, null, null], total: 0 };
+            store.currentRoundIndex = 0;
+            startRound(0);
+        }
+
+        function startRound(index) {
+            store.phase = 'face-off';
+            store.roundScore = 0;
+            store.strikes = 0;
+            store.revealedAnswers = [];
+            store.currentTeam = null;
+            store.faceOffTurn = 'teamA';
+            store.faceOffData = { teamA: null, teamB: null };
+            renderApp();
+        }
+
+        function revealAnswer(idx) {
+            if (!store.revealedAnswers.includes(idx)) {
+                store.revealedAnswers.push(idx);
+                store.roundScore += store.gameData[store.currentRoundIndex].answers[idx].points;
+                playSound('correct');
+                renderApp();
+                return true;
+            }
+            return false;
+        }
+
+        function handleFaceOffAnswer(idx) {
+            const rank = idx !== null ? idx : 999;
+            if (idx !== null) revealAnswer(idx);
+            else playSound('wrong');
+
+            store.faceOffData[store.faceOffTurn] = rank;
+            
+            if (store.faceOffTurn === 'teamA') {
+                store.faceOffTurn = 'teamB';
+                renderApp();
             } else {
-                prefix = itemName.substring(0, 2).toUpperCase();
+                const rankA = store.faceOffData.teamA;
+                const rankB = store.faceOffData.teamB;
+                let winner = 'teamA';
+                if (rankB < rankA) winner = 'teamB';
+                store.faceOffTurn = 'decision';
+                store.currentTeam = winner;
+                renderApp();
+            }
+        }
+
+        function handlePlayOrPass(decision) {
+            if (decision === 'pass') {
+                store.currentTeam = store.currentTeam === 'teamA' ? 'teamB' : 'teamA';
+            }
+            store.phase = 'playing';
+            renderApp();
+        }
+
+        function handleStrike() {
+            playSound('wrong');
+            store.strikes++;
+            if (store.phase === 'playing' && store.strikes >= 3) {
+                store.phase = 'steal';
+            } else if (store.phase === 'steal') {
+                finishRound(store.currentTeam);
+                return;
+            }
+            renderApp();
+        }
+
+        function handleStealSuccess(idx) {
+            revealAnswer(idx);
+            const stealingTeam = store.currentTeam === 'teamA' ? 'teamB' : 'teamA';
+            finishRound(stealingTeam);
+        }
+
+        function handleRoundAnswer(idx) {
+            const success = revealAnswer(idx);
+            if (success) {
+                const roundData = store.gameData[store.currentRoundIndex];
+                if (store.revealedAnswers.length === roundData.answers.length) {
+                    finishRound(store.currentTeam);
+                }
+            }
+        }
+
+        function finishRound(winningTeam) {
+            store.scores[winningTeam] += store.roundScore;
+            store.phase = 'round-end';
+            renderApp();
+        }
+
+        function nextRound() {
+            if (store.currentRoundIndex + 1 < store.gameData.length) {
+                store.currentRoundIndex++;
+                startRound(store.currentRoundIndex);
+            } else {
+                if (store.scores.teamA > store.scores.teamB) store.fastMoneyWinner = 'teamA';
+                else if (store.scores.teamB > store.scores.teamA) store.fastMoneyWinner = 'teamB';
+                else store.fastMoneyWinner = 'teamA';
+                
+                store.phase = 'fast-money-intro';
+                renderApp();
+            }
+        }
+
+        // --- FAST MONEY LOGIC ---
+        function handleFmInput(player, index, value) {
+            store.fmAnswers[player][index] = value;
+            if (player === 'p2') {
+                const p1Ans = store.fmAnswers.p1[index] || "";
+                const isDup = value.trim() !== '' && value.trim().toLowerCase() === p1Ans.trim().toLowerCase();
+                const dupEl = document.getElementById(`fm-dup-${index}`);
+                if (dupEl) {
+                    if (isDup) dupEl.classList.remove('hidden');
+                    else dupEl.classList.add('hidden');
+                }
+                const inputEl = document.getElementById(`fm-input-${index}`);
+                if (inputEl) {
+                   if (isDup) inputEl.classList.add('border-red-500');
+                   else inputEl.classList.remove('border-red-500');
+                }
+            }
+        }
+
+        function assignFmPoints(player, qIndex, points) {
+            const pointsArray = player === 'p1' ? store.fmAnswers.p1Points : store.fmAnswers.p2Points;
+            const oldPoints = pointsArray[qIndex] || 0;
+            pointsArray[qIndex] = points;
+            store.fmAnswers.total = store.fmAnswers.total - oldPoints + points;
+            
+            if (points > 0) playSound('correct');
+            else playSound('wrong');
+            renderApp(); 
+        }
+
+        // --- SETTINGS HELPER FUNCTIONS ---
+        function addNewRound() {
+            const newRound = {
+                question: "New Question",
+                answers: [{ text: "Answer 1", points: 10 }]
+            };
+            if (store.settingsTab === 'main') {
+                store.gameData.push(newRound);
+                editRound(store.gameData.length - 1);
+            } else {
+                if(store.fastMoneyData.length >= 5) {
+                    return showModal("Fast Money is limited to exactly 5 questions.", null, true);
+                }
+                store.fastMoneyData.push(newRound);
+                editRound(store.fastMoneyData.length - 1);
+            }
+            renderApp();
+        }
+
+        function editRound(index) {
+            store.editingRoundIndex = index;
+            const sourceData = store.settingsTab === 'main' ? store.gameData : store.fastMoneyData;
+            store.tempRoundData = JSON.parse(JSON.stringify(sourceData[index]));
+            renderApp();
+        }
+
+        function saveRound() {
+            if (store.editingRoundIndex === null || !store.tempRoundData) return;
+            
+            // Filter empty answers
+            store.tempRoundData.answers = store.tempRoundData.answers.filter(a => a.text.trim() !== "");
+            
+            if (store.settingsTab === 'main') {
+                store.gameData[store.editingRoundIndex] = JSON.parse(JSON.stringify(store.tempRoundData));
+            } else {
+                store.fastMoneyData[store.editingRoundIndex] = JSON.parse(JSON.stringify(store.tempRoundData));
             }
             
-            const samePrefixItems = existingItems.filter(i => i.id.startsWith(prefix + '-'));
-            let maxNum = 0;
+            store.editingRoundIndex = null;
+            store.tempRoundData = null;
+            renderApp();
+            showModal("Changes saved successfully!", null, true);
+        }
+
+        function deleteRound(index) {
+            showModal("Are you sure you want to delete this round?", () => {
+                if (store.settingsTab === 'main') {
+                    store.gameData.splice(index, 1);
+                } else {
+                    store.fastMoneyData.splice(index, 1);
+                }
+                
+                if (store.editingRoundIndex === index) {
+                    store.editingRoundIndex = null;
+                    store.tempRoundData = null;
+                } else if (store.editingRoundIndex > index) {
+                    store.editingRoundIndex--;
+                }
+                renderApp();
+            });
+        }
+
+        function updateTempRound(field, value) {
+            if (!store.tempRoundData) return;
+            store.tempRoundData[field] = value;
+        }
+
+        function updateTempAnswer(index, field, value) {
+            if (!store.tempRoundData || !store.tempRoundData.answers[index]) return;
+            if (field === 'points') value = parseInt(value) || 0;
+            store.tempRoundData.answers[index][field] = value;
+        }
+
+        function addTempAnswerSlot() {
+            if (!store.tempRoundData) return;
+            store.tempRoundData.answers.push({ text: "", points: 0 });
+            renderApp();
+        }
+
+        function removeTempAnswerSlot(index) {
+            if (!store.tempRoundData) return;
+            store.tempRoundData.answers.splice(index, 1);
+            renderApp();
+        }
+
+        function setSettingsTab(tab) {
+            store.settingsTab = tab;
+            store.editingRoundIndex = null;
+            store.tempRoundData = null;
+            renderApp();
+        }
+
+        function openSettings() {
+            store.phase = 'settings';
+            store.editingRoundIndex = null;
+            store.tempRoundData = null;
+            store.settingsTab = 'main';
+            renderApp();
+        }
+
+        // --- RENDERERS ---
+
+        function renderApp() {
+            app.innerHTML = '';
             
-            samePrefixItems.forEach(item => {
-                const numPart = parseInt(item.id.split('-')[1]);
-                if (!isNaN(numPart) && numPart > maxNum) maxNum = numPart;
-            });
+            switch (store.phase) {
+                case 'intro': renderIntro(); break;
+                case 'settings': renderSettings(); break;
+                case 'fast-money-intro': renderFastMoneyIntro(); break;
+                case 'fast-money-p1': renderFastMoneyInput('p1'); break;
+                case 'fast-money-p1-reveal': renderFastMoneyReveal('p1'); break;
+                case 'fast-money-p2': renderFastMoneyInput('p2'); break;
+                case 'fast-money-p2-reveal': renderFastMoneyReveal('p2'); break;
+                case 'fast-money-result': renderFastMoneyResult(); break;
+                case 'game-over': renderGameOver(); break;
+                default: renderMainGame(); break; 
+            }
+            lucide.createIcons();
+        }
 
-            const nextNum = (maxNum + 1).toString().padStart(4, '0');
-            return `${prefix}-${nextNum}`;
-        };
+        function renderIntro() {
+            app.innerHTML = `
+            <div class="min-h-screen bg-blue-950 flex flex-col items-center justify-center p-4 relative overflow-hidden">
+                <div class="absolute top-[-20%] left-[-10%] w-[50%] h-[50%] bg-blue-600 rounded-full blur-[100px] md:blur-[150px] opacity-30 pointer-events-none"></div>
+                <div class="absolute bottom-[-20%] right-[-10%] w-[50%] h-[50%] bg-yellow-500 rounded-full blur-[100px] md:blur-[150px] opacity-20 pointer-events-none"></div>
+                
+                <div class="bg-slate-900/80 backdrop-blur-sm p-6 md:p-12 rounded-3xl border-4 md:border-[6px] border-yellow-500 shadow-2xl text-center max-w-3xl w-full relative">
+                    <button onclick="openSettings()" class="absolute top-4 right-4 md:top-6 md:right-6 text-blue-400 hover:text-white transition-colors p-2"><i data-lucide="settings" class="w-6 h-6 md:w-8 md:h-8"></i></button>
+                    
+                    <div class="mb-8 md:mb-10">
+                        <h1 class="text-4xl md:text-8xl font-black text-yellow-400 mb-2 drop-shadow-[0_4px_0_rgba(0,0,0,0.5)] tracking-tighter italic">FAMILY FEUD</h1>
+                        <h2 class="text-lg md:text-3xl font-bold text-white tracking-[0.3em] md:tracking-[0.5em] uppercase text-shadow-sm">Game Show</h2>
+                    </div>
+                    
+                    <div class="flex flex-col gap-6 md:gap-8 items-center w-full max-w-lg mx-auto">
+                        <div class="w-full space-y-4 md:space-y-6">
+                            <div class="relative group">
+                                <label class="absolute -top-2.5 left-4 bg-blue-600 px-2 text-[10px] md:text-xs text-white font-black uppercase tracking-wider rounded">LEFT TEAM</label>
+                                <input type="text" value="${store.teamNames.teamA}" oninput="store.teamNames.teamA = this.value" class="w-full bg-blue-950 border-2 md:border-4 border-blue-600 rounded-xl p-3 md:p-4 text-center text-xl md:text-2xl font-black text-white focus:border-yellow-400 outline-none transition-colors shadow-inner placeholder-blue-700" placeholder="ENTER NAME">
+                            </div>
+                            <div class="text-yellow-500 font-black text-lg md:text-xl italic tracking-widest drop-shadow-md">VS</div>
+                            <div class="relative group">
+                                <label class="absolute -top-2.5 left-4 bg-blue-600 px-2 text-[10px] md:text-xs text-white font-black uppercase tracking-wider rounded">RIGHT TEAM</label>
+                                <input type="text" value="${store.teamNames.teamB}" oninput="store.teamNames.teamB = this.value" class="w-full bg-blue-950 border-2 md:border-4 border-blue-600 rounded-xl p-3 md:p-4 text-center text-xl md:text-2xl font-black text-white focus:border-yellow-400 outline-none transition-colors shadow-inner placeholder-blue-700" placeholder="ENTER NAME">
+                            </div>
+                        </div>
+                        <button onclick="startGame()" class="w-full bg-gradient-to-b from-yellow-400 to-yellow-600 hover:from-yellow-300 hover:to-yellow-500 text-blue-950 font-black text-xl md:text-3xl py-4 md:py-6 px-12 rounded-full shadow-[0_4px_0_rgb(161,98,7)] md:shadow-[0_6px_0_rgb(161,98,7)] transform transition active:translate-y-1 active:shadow-none flex items-center justify-center gap-2 md:gap-4 mt-4 uppercase tracking-wider">
+                            <i data-lucide="play" class="w-6 h-6 md:w-10 md:h-10 fill-current"></i> START GAME
+                        </button>
+                    </div>
+                </div>
+            </div>`;
+        }
 
-        const generateNextId = (items, prefix) => {
-            if (!items || items.length === 0) return `${prefix}1`;
-            const ids = items.map(i => {
-                const numStr = i.id.replace(prefix, '');
-                const num = parseInt(numStr);
-                return isNaN(num) ? 0 : num;
-            });
-            const maxId = Math.max(0, ...ids);
-            return `${prefix}${maxId + 1}`;
-        };
+        function renderSettings() {
+            const listData = store.settingsTab === 'main' ? store.gameData : store.fastMoneyData;
+            
+            let roundsListHtml = listData.map((round, idx) => `
+                <div onclick="editRound(${idx})" class="p-4 rounded-lg cursor-pointer border-2 transition-all ${store.editingRoundIndex === idx ? 'bg-slate-700 border-yellow-500 shadow-md' : 'bg-slate-900 border-slate-700 hover:border-slate-500'}">
+                    <p class="text-sm font-black text-yellow-500 mb-1 uppercase tracking-wider">${store.settingsTab === 'main' ? `Round ${idx + 1}` : `Question ${idx + 1}`}</p>
+                    <p class="text-sm text-slate-200 truncate font-medium">${round.question}</p>
+                </div>
+            `).join('');
 
-        const generateRoomId = (floorCode, existingRooms) => {
-            const prefix = `${floorCode}-R`;
-            const ids = existingRooms.map(r => {
-                if (!r.id.startsWith(prefix)) return 0;
-                const numStr = r.id.replace(prefix, '');
-                const num = parseInt(numStr);
-                return isNaN(num) ? 0 : num;
-            });
-            const maxId = Math.max(0, ...ids);
-            const nextNum = (maxId + 1).toString().padStart(2, '0');
-            return `${prefix}${nextNum}`;
-        };
+            let editorHtml = '';
+            if (store.editingRoundIndex !== null && store.tempRoundData) {
+                let answersInputs = store.tempRoundData.answers.map((ans, aIdx) => `
+                    <div class="flex gap-3 items-center">
+                        <span class="text-slate-500 font-mono font-bold w-6 text-right">${aIdx + 1}.</span>
+                        <input type="text" placeholder="Answer Text" value="${ans.text}" oninput="updateTempAnswer(${aIdx}, 'text', this.value)" class="flex-1 bg-slate-900 border border-slate-600 rounded p-3 text-sm font-medium focus:border-blue-500 outline-none text-white">
+                        <input type="number" placeholder="Pts" value="${ans.points}" oninput="updateTempAnswer(${aIdx}, 'points', this.value)" class="w-24 bg-slate-900 border border-slate-600 rounded p-3 text-sm text-center font-mono font-bold focus:border-blue-500 outline-none text-white">
+                        <button onclick="removeTempAnswerSlot(${aIdx})" class="text-red-500 hover:text-red-400 p-2 hover:bg-red-500/10 rounded"><i data-lucide="x" class="w-5 h-5"></i></button>
+                    </div>
+                `).join('');
 
-        // --- Common Components ---
+                editorHtml = `
+                    <div class="space-y-8">
+                        <div>
+                            <label class="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Question</label>
+                            <input type="text" value="${store.tempRoundData.question}" oninput="updateTempRound('question', this.value)" class="w-full bg-slate-900 border-2 border-slate-600 rounded-lg p-4 text-white text-lg font-bold focus:border-yellow-500 outline-none transition-colors">
+                        </div>
+                        <div>
+                            <div class="flex justify-between items-center mb-3">
+                                <label class="block text-xs font-black text-slate-400 uppercase tracking-widest">Answers & Points</label>
+                                <button onclick="addTempAnswerSlot()" class="text-sm text-green-400 hover:text-green-300 font-bold flex items-center gap-1 bg-slate-900 px-3 py-1 rounded border border-green-900 hover:border-green-400 transition-colors"><i data-lucide="plus" class="w-4 h-4"></i> Add Slot</button>
+                            </div>
+                            <div class="space-y-3 max-h-[40vh] overflow-y-auto pr-2 custom-scrollbar">
+                                ${answersInputs}
+                            </div>
+                        </div>
+                        <div class="flex justify-between pt-6 border-t border-slate-700">
+                            <button onclick="deleteRound(${store.editingRoundIndex})" class="text-red-500 hover:text-red-400 flex items-center gap-2 px-6 py-3 rounded-lg hover:bg-red-500/10 font-bold transition-colors"><i data-lucide="trash-2" class="w-5 h-5"></i> Delete Round</button>
+                            <button onclick="saveRound()" class="bg-yellow-500 hover:bg-yellow-400 text-blue-900 font-black px-8 py-3 rounded-lg flex items-center gap-2 shadow-lg hover:shadow-yellow-500/20 transition-all"><i data-lucide="save" class="w-5 h-5"></i> Save Changes</button>
+                        </div>
+                    </div>
+                `;
+            } else {
+                editorHtml = `<div class="h-full flex flex-col items-center justify-center text-slate-600"><i data-lucide="edit-2" class="w-16 h-16 mb-6 opacity-20"></i><p class="text-xl font-bold">Select a round to edit or create new.</p></div>`;
+            }
 
-        const Card = ({ children, className = "" }) => (
-            <div className={`bg-white rounded-lg shadow-sm border border-gray-100 ${className}`}>
-                {children}
+            app.innerHTML = `
+            <div class="min-h-screen bg-slate-950 text-white p-4 md:p-6 font-sans">
+                <div class="max-w-7xl mx-auto">
+                    <div class="flex justify-between items-center mb-8 border-b border-slate-700 pb-4">
+                        <h1 class="text-3xl md:text-4xl font-black text-yellow-400 flex items-center gap-3 tracking-wide">
+                            <i data-lucide="settings" class="w-8 h-8 md:w-10 md:h-10"></i> GAME SETTINGS
+                        </h1>
+                        <button onclick="store.phase='intro'; renderApp()" class="bg-blue-600 hover:bg-blue-500 px-6 md:px-8 py-3 rounded-lg font-bold shadow-lg transition-transform active:scale-95">Back to Menu</button>
+                    </div>
+
+                    <!-- TABS -->
+                    <div class="flex gap-4 mb-6 overflow-x-auto pb-2">
+                        <button onclick="setSettingsTab('main')" class="px-6 md:px-8 py-3 rounded-lg font-black text-sm md:text-lg whitespace-nowrap transition-colors ${store.settingsTab === 'main' ? 'bg-yellow-500 text-blue-900 shadow-lg' : 'bg-slate-800 text-slate-400 hover:bg-slate-700'}">MAIN ROUNDS</button>
+                        <button onclick="setSettingsTab('fastmoney')" class="px-6 md:px-8 py-3 rounded-lg font-black text-sm md:text-lg whitespace-nowrap transition-colors ${store.settingsTab === 'fastmoney' ? 'bg-yellow-500 text-blue-900 shadow-lg' : 'bg-slate-800 text-slate-400 hover:bg-slate-700'}">FAST MONEY (${store.fastMoneyData.length}/5)</button>
+                    </div>
+
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                        <!-- LIST -->
+                        <div class="lg:col-span-1 bg-slate-800 rounded-xl p-5 border border-slate-700 h-fit shadow-xl max-h-[40vh] lg:max-h-[70vh] overflow-y-auto">
+                            <div class="flex justify-between items-center mb-6 border-b border-slate-600 pb-4 sticky top-0 bg-slate-800 z-10">
+                                <h3 class="font-bold text-slate-300 text-xl">${store.settingsTab === 'main' ? 'Game Rounds' : 'FM Questions'}</h3>
+                                <button onclick="addNewRound()" class="bg-green-600 hover:bg-green-500 p-2 rounded-lg text-white shadow-md transition-transform active:scale-95"><i data-lucide="plus" class="w-6 h-6"></i></button>
+                            </div>
+                            <div class="space-y-3">
+                                ${roundsListHtml}
+                            </div>
+                        </div>
+
+                        <!-- EDITOR -->
+                        <div class="lg:col-span-2 bg-slate-800 rounded-xl p-6 md:p-8 border border-slate-700 shadow-xl">
+                            ${editorHtml}
+                        </div>
+                    </div>
+                </div>
             </div>
-        );
+            `;
+        }
 
-        const Badge = ({ children, color = "blue" }) => {
-            const colors = {
-                blue: "bg-blue-100 text-blue-800",
-                green: "bg-green-100 text-green-800",
-                purple: "bg-purple-100 text-purple-800",
-                orange: "bg-orange-100 text-orange-800",
-                gray: "bg-gray-100 text-gray-800",
-                red: "bg-red-100 text-red-800",
-                yellow: "bg-yellow-100 text-yellow-800"
-            };
-            return <span className={`px-2 py-1 rounded-full text-xs font-medium ${colors[color] || colors.gray}`}>{children}</span>;
-        };
+        function renderMainGame() {
+            const currentRound = store.gameData[store.currentRoundIndex];
+            
+            let answersHtml = '';
+            for(let i=0; i<8; i++) {
+                const ans = currentRound.answers[i];
+                if(ans) {
+                    const revealed = store.revealedAnswers.includes(i);
+                    const onClick = (store.phase === 'face-off' || store.phase === 'playing' || store.phase === 'steal') 
+                        ? (store.phase === 'face-off' ? `handleFaceOffAnswer(${i})` : store.phase === 'playing' ? `handleRoundAnswer(${i})` : `handleStealSuccess(${i})`)
+                        : '';
+                    
+                    answersHtml += `
+                    <div onclick="${!revealed ? onClick : ''}" class="relative rounded-lg md:rounded-xl overflow-hidden h-16 md:h-24 flex items-center shadow-md md:shadow-2xl cursor-pointer transition-all transform active:scale-95 border md:border-2 ${revealed ? 'bg-gradient-to-b from-blue-600 to-blue-800 border-yellow-400' : 'bg-gradient-to-br from-blue-900 to-blue-950 border-blue-600 hover:border-blue-400'}">
+                        ${!revealed ? `
+                        <div class="w-full h-full flex items-center justify-center relative group">
+                            <div class="w-10 h-10 md:w-14 md:h-14 rounded-full bg-blue-800 border-2 md:border-4 border-blue-600 group-hover:border-yellow-400 flex items-center justify-center text-blue-400 group-hover:text-yellow-400 font-black text-xl md:text-3xl shadow-inner transition-colors">${i + 1}</div>
+                        </div>` : `
+                        <div class="w-full h-full flex items-center justify-between px-3 md:px-6 text-white animate-flip-in">
+                            <span class="font-bold text-sm md:text-3xl uppercase tracking-wide truncate mr-2 md:mr-4 text-shadow-sm">${ans.text}</span>
+                            <div class="bg-black border border-white/20 min-w-[3rem] md:min-w-[4rem] h-10 md:h-14 flex items-center justify-center shadow-inner">
+                                <span class="font-mono text-xl md:text-4xl font-bold text-yellow-400">${ans.points}</span>
+                            </div>
+                        </div>`}
+                    </div>`;
+                } else {
+                     answersHtml += `<div class="h-16 md:h-24 border md:border-2 border-blue-900/40 rounded-lg md:rounded-xl bg-blue-900/10"></div>`;
+                }
+            }
 
-        const Button = ({ children, onClick, variant = "primary", className = "", disabled = false, size = "md", title, style, type = "button" }) => {
-            const variants = {
-                primary: "bg-indigo-600 text-white hover:bg-indigo-700 disabled:bg-indigo-300",
-                secondary: "bg-white text-gray-700 border border-gray-300 hover:bg-gray-50 disabled:bg-gray-100",
-                danger: "bg-red-600 text-white hover:bg-red-700 disabled:bg-red-300",
-                ghost: "bg-transparent text-gray-600 hover:bg-gray-100"
-            };
-            const sizes = {
-                sm: "px-2 py-1 text-xs",
-                md: "px-4 py-2 text-sm",
-                lg: "px-6 py-3 text-base"
-            };
-            return (
-                <button 
-                    type={type}
-                    onClick={onClick} 
-                    disabled={disabled}
-                    title={title}
-                    style={style}
-                    className={`rounded-md transition-colors duration-200 flex items-center justify-center gap-2 relative z-10 cursor-pointer ${variants[variant]} ${sizes[size]} ${className}`}
-                >
-                    {children}
+            // Controls Panel HTML
+            let controlsHtml = '';
+            if (store.phase === 'face-off' && store.faceOffTurn !== 'decision') {
+                controlsHtml = `
+                <div class="bg-blue-800/50 p-4 md:p-6 rounded-xl text-center border-2 border-blue-600/50 animate-pulse-slow">
+                    <p class="text-sm md:text-lg text-blue-200 font-bold mb-1 uppercase tracking-wide">Face-Off Turn</p>
+                    <p class="text-xl md:text-3xl font-black text-yellow-400 uppercase mb-4 drop-shadow-md truncate">${store.faceOffTurn === 'teamA' ? store.teamNames.teamA : store.teamNames.teamB}</p>
+                    <button onclick="handleFaceOffAnswer(null)" class="w-full bg-red-600 hover:bg-red-500 text-white font-black py-3 md:py-4 rounded-xl shadow-[0_4px_0_rgb(153,27,27)] active:shadow-none active:translate-y-1 transition-all flex items-center justify-center gap-2 text-base md:text-lg">
+                        <i data-lucide="x" class="w-5 h-5 md:w-6 md:h-6"></i> NO ANSWER
+                    </button>
+                </div>`;
+            } else if (store.phase === 'face-off' && store.faceOffTurn === 'decision') {
+                controlsHtml = `
+                <div class="bg-yellow-900/30 p-4 md:p-6 rounded-xl border-2 border-yellow-500/50 text-center">
+                    <p class="font-bold text-lg md:text-xl text-yellow-100 mb-1">WINNER</p>
+                    <p class="text-2xl md:text-3xl font-black text-yellow-400 uppercase mb-4 md:mb-6 truncate">${store.currentTeam === 'teamA' ? store.teamNames.teamA : store.teamNames.teamB}</p>
+                    <div class="grid grid-cols-2 xl:grid-cols-1 gap-3">
+                        <button onclick="handlePlayOrPass('play')" class="bg-green-600 hover:bg-green-500 text-white font-black py-3 md:py-4 rounded-xl text-base md:text-xl shadow-md">PLAY</button>
+                        <button onclick="handlePlayOrPass('pass')" class="bg-orange-600 hover:bg-orange-500 text-white font-black py-3 md:py-4 rounded-xl text-base md:text-xl shadow-md">PASS</button>
+                    </div>
+                </div>`;
+            } else if (store.phase === 'playing') {
+                controlsHtml = `
+                <div class="bg-blue-900/30 p-4 md:p-6 rounded-xl border border-blue-700/50 flex flex-col h-full justify-between">
+                    <div class="text-center mb-4 md:mb-6">
+                        <p class="text-blue-300 font-bold uppercase tracking-widest text-[10px] md:text-xs mb-1">Current Player</p>
+                        <p class="text-xl md:text-3xl font-black text-white uppercase truncate">${store.currentTeam === 'teamA' ? store.teamNames.teamA : store.teamNames.teamB}</p>
+                    </div>
+                    <button onclick="handleStrike()" class="w-full bg-red-600 hover:bg-red-500 text-white font-black text-4xl md:text-6xl py-4 md:py-8 rounded-xl md:rounded-2xl shadow-[0_4px_0_rgb(153,27,27)] md:shadow-[0_6px_0_rgb(153,27,27)] active:shadow-none active:translate-y-2 transition-all flex items-center justify-center mb-2">
+                        <i data-lucide="x" class="w-10 h-10 md:w-16 md:h-16"></i>
+                    </button>
+                </div>`;
+            } else if (store.phase === 'steal') {
+                controlsHtml = `
+                <div class="bg-purple-900/40 p-4 md:p-6 rounded-xl border-2 border-purple-500 animate-pulse text-center">
+                    <h3 class="font-black text-2xl md:text-3xl text-purple-300 mb-2 tracking-widest italic">STEAL!</h3>
+                    <p class="text-white text-base md:text-lg font-bold mb-4 md:mb-6">Chance for <span class="text-yellow-400 uppercase block text-lg md:text-2xl mt-1 truncate">${store.currentTeam === 'teamA' ? store.teamNames.teamB : store.teamNames.teamA}</span></p>
+                    <button onclick="handleStrike()" class="w-full bg-red-600 hover:bg-red-500 text-white font-black py-3 md:py-4 rounded-xl mt-2 md:mt-4 text-base md:text-lg">WRONG ANSWER</button>
+                </div>`;
+            } else if (store.phase === 'round-end') {
+                controlsHtml = `
+                <div class="bg-green-900/30 p-4 md:p-6 rounded-xl border border-green-500/50 text-center flex flex-col justify-center h-full">
+                    <h3 class="text-2xl md:text-3xl font-black text-green-400 uppercase italic mb-2">Round Done!</h3>
+                    <button onclick="nextRound()" class="w-full bg-yellow-500 hover:bg-yellow-400 text-blue-950 font-black py-3 md:py-5 rounded-xl shadow-[0_4px_0_rgb(161,98,7)] active:shadow-none active:translate-y-1 transition-all flex items-center justify-center gap-2 text-lg md:text-xl mt-2 md:mt-4">
+                        NEXT <i data-lucide="arrow-right"></i>
+                    </button>
+                </div>`;
+            }
+
+            app.innerHTML = `
+            <!-- HEADER / SCOREBOARD -->
+            <div class="bg-blue-950/95 border-b-4 md:border-b-8 border-yellow-500 p-2 md:p-4 shadow-2xl relative z-10 backdrop-blur-md sticky top-0">
+                <div class="max-w-7xl mx-auto flex justify-between items-center gap-2 md:gap-4">
+                    <!-- Team A -->
+                    <div class="flex flex-col items-center p-2 md:p-4 rounded-xl md:rounded-2xl w-1/3 md:min-w-[140px] border-2 md:border-4 ${store.currentTeam === 'teamA' ? 'bg-blue-800 border-yellow-400 scale-105' : 'bg-blue-900/50 border-blue-800 opacity-70'}">
+                        <span class="text-yellow-400 font-black text-[10px] md:text-sm uppercase truncate w-full text-center">${store.teamNames.teamA}</span>
+                        <span class="text-3xl md:text-5xl font-black font-mono bg-black text-white px-2 md:px-6 py-1 md:py-2 rounded md:rounded-lg border md:border-2 border-gray-700 shadow-inner w-full text-center">${store.scores.teamA}</span>
+                    </div>
+
+                    <!-- Center Info -->
+                    <div class="flex flex-col items-center w-1/3">
+                        <div class="bg-black px-4 md:px-8 py-2 md:py-3 rounded-lg md:rounded-xl border-2 md:border-4 border-yellow-600 mb-1 md:mb-3 relative overflow-hidden w-full text-center">
+                            <span class="text-4xl md:text-6xl font-mono text-yellow-500 font-black tracking-widest relative z-10">${store.roundScore.toString().padStart(3, '0')}</span>
+                        </div>
+                        <div class="flex gap-1 md:gap-3 h-6 md:h-10 justify-center w-full">
+                            ${[0,1,2].map(i => `<div class="w-6 h-6 md:w-10 md:h-10 flex items-center justify-center font-black text-lg md:text-3xl rounded md:rounded-lg border md:border-2 ${i < store.strikes ? 'bg-red-600 border-red-400 text-white' : 'bg-blue-900/30 border-blue-800 text-blue-800'}">${i < store.strikes ? 'X' : ''}</div>`).join('')}
+                        </div>
+                    </div>
+
+                    <!-- Team B -->
+                    <div class="flex flex-col items-center p-2 md:p-4 rounded-xl md:rounded-2xl w-1/3 md:min-w-[140px] border-2 md:border-4 ${store.currentTeam === 'teamB' ? 'bg-blue-800 border-yellow-400 scale-105' : 'bg-blue-900/50 border-blue-800 opacity-70'}">
+                        <span class="text-yellow-400 font-black text-[10px] md:text-sm uppercase truncate w-full text-center">${store.teamNames.teamB}</span>
+                        <span class="text-3xl md:text-5xl font-black font-mono bg-black text-white px-2 md:px-6 py-1 md:py-2 rounded md:rounded-lg border md:border-2 border-gray-700 shadow-inner w-full text-center">${store.scores.teamB}</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="max-w-7xl mx-auto p-3 md:p-6 lg:p-8 grid grid-cols-1 xl:grid-cols-4 gap-4 md:gap-8 flex-1 h-full w-full">
+                <!-- GAME BOARD AREA -->
+                <div class="xl:col-span-3 flex flex-col gap-4 md:gap-6">
+                    <div class="bg-gradient-to-r from-blue-800 to-blue-700 p-4 md:p-8 rounded-2xl md:rounded-3xl border-2 md:border-4 border-blue-500 shadow-lg md:shadow-2xl text-center relative overflow-hidden">
+                        <h3 class="relative z-10 text-blue-200 text-[10px] md:text-sm font-black uppercase tracking-[0.2em] md:tracking-[0.3em] mb-1 md:mb-3">Round ${store.currentRoundIndex + 1}</h3>
+                        <p class="relative z-10 text-xl md:text-5xl font-bold text-white leading-tight drop-shadow-md">"${currentRound.question}"</p>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-2 md:gap-6">
+                        ${answersHtml}
+                    </div>
+                </div>
+
+                <!-- HOST CONTROLS AREA -->
+                <div class="xl:col-span-1 bg-slate-900 rounded-2xl md:rounded-3xl border-2 border-slate-700 p-4 md:p-6 flex flex-col gap-4 shadow-xl md:shadow-2xl h-fit xl:sticky xl:top-4 order-last xl:order-none">
+                     <div class="border-b-2 border-slate-700 pb-3 md:pb-4 mb-1 md:mb-2">
+                        <h4 class="font-black text-yellow-500 uppercase tracking-widest text-xs md:text-sm flex items-center gap-2"><i data-lucide="settings" class="w-4 h-4"></i> Host Controls</h4>
+                        <div class="flex items-center justify-between mt-2 bg-slate-800 rounded px-3 py-1">
+                             <span class="text-[10px] md:text-xs text-slate-400 uppercase font-bold">Status</span>
+                             <span class="text-[10px] md:text-xs text-white font-black bg-blue-600 px-2 py-0.5 rounded uppercase">${store.phase.replace('-', ' ')}</span>
+                        </div>
+                    </div>
+                    <div class="flex-1 flex flex-col gap-3 md:gap-4">
+                        ${controlsHtml}
+                    </div>
+                    <div class="mt-auto pt-4 md:pt-6 border-t-2 border-slate-700 grid grid-cols-2 gap-2 md:gap-3">
+                        <button onclick="showModal('Return to Main Menu?', () => { store.phase = 'intro'; renderApp(); })" class="flex flex-col items-center justify-center gap-1 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-[10px] md:text-xs font-black py-3 md:py-4 rounded-lg border border-slate-700"><i data-lucide="home" class="w-4 h-4 md:w-5 md:h-5"></i> MENU</button>
+                        <button onclick="showModal('Open Settings?', () => openSettings())" class="flex flex-col items-center justify-center gap-1 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-[10px] md:text-xs font-black py-3 md:py-4 rounded-lg border border-slate-700"><i data-lucide="settings" class="w-4 h-4 md:w-5 md:h-5"></i> OPTIONS</button>
+                    </div>
+                </div>
+            </div>`;
+        }
+
+        // --- FAST MONEY RENDERERS ---
+
+        function renderFastMoneyIntro() {
+            app.innerHTML = `
+            <div class="min-h-screen bg-blue-950 flex flex-col items-center justify-center text-white p-4 text-center">
+                <div class="max-w-4xl w-full bg-blue-900/50 backdrop-blur-md p-6 md:p-12 rounded-3xl border-4 border-yellow-500 shadow-2xl">
+                    <h1 class="text-2xl md:text-4xl font-bold text-blue-300 mb-2 uppercase tracking-widest">End of Main Rounds</h1>
+                    <h2 class="text-5xl md:text-9xl font-black text-white mb-8 md:mb-10 drop-shadow-lg italic">FAST MONEY!</h2>
+                    <div class="bg-gradient-to-b from-blue-800 to-blue-900 p-6 md:p-10 rounded-2xl border-4 border-blue-500 text-center mb-8 md:mb-10 shadow-xl max-w-2xl mx-auto">
+                        <p class="text-blue-200 text-sm md:text-lg font-bold uppercase tracking-widest mb-2 md:mb-4">Playing Team</p>
+                        <p class="text-4xl md:text-7xl font-black text-yellow-300 drop-shadow-md truncate">
+                            ${store.fastMoneyWinner === 'teamA' ? store.teamNames.teamA : store.teamNames.teamB}
+                        </p>
+                    </div>
+                    <button onclick="store.phase='fast-money-p1'; store.fmTimer=20; renderApp()" class="bg-yellow-500 hover:bg-yellow-400 text-blue-900 font-black px-8 md:px-16 py-4 md:py-6 rounded-full text-xl md:text-3xl shadow-[0_6px_0_rgb(161,98,7)] transform transition active:translate-y-1 active:shadow-none w-full md:w-auto">
+                        START PLAYER 1
+                    </button>
+                </div>
+            </div>`;
+        }
+
+        function renderFastMoneyInput(player) {
+            const nextPhase = player === 'p1' ? 'fast-money-p1-reveal' : 'fast-money-p2-reveal';
+            const answers = store.fmAnswers[player];
+            
+            let inputsHtml = store.fastMoneyData.map((item, idx) => `
+                <div class="bg-blue-800 p-3 md:p-5 rounded-xl border border-blue-600 shadow-md">
+                    <div class="flex justify-between items-center mb-2">
+                        <p class="text-xs md:text-sm text-blue-300 font-bold uppercase tracking-wider">Question ${idx + 1}</p>
+                        <span id="fm-dup-${idx}" class="hidden text-red-500 text-xs font-black animate-pulse flex items-center gap-1"><i data-lucide="alert-circle" class="w-3 h-3 md:w-4 md:h-4"></i> DUPLICATE</span>
+                    </div>
+                    <p class="font-bold text-white text-base md:text-xl mb-2 md:mb-3 leading-snug">${item.question}</p>
+                    <input 
+                        id="fm-input-${idx}"
+                        type="text" 
+                        value="${answers[idx]}"
+                        oninput="handleFmInput('${player}', ${idx}, this.value)"
+                        placeholder="Type answer here..."
+                        class="w-full p-3 md:p-4 rounded-lg bg-blue-950 text-yellow-300 font-bold text-lg md:text-2xl border-2 outline-none transition-colors border-blue-600 focus:border-yellow-400"
+                    />
+                </div>
+            `).join('');
+
+            app.innerHTML = `
+            <div class="max-w-5xl mx-auto p-3 md:p-8 flex flex-col h-full w-full">
+                <div class="flex flex-col md:flex-row justify-between items-center mb-4 md:mb-8 bg-blue-900/90 p-4 md:p-6 rounded-2xl border-2 border-blue-600 shadow-xl backdrop-blur-sm sticky top-0 z-20">
+                    <div class="text-center md:text-left mb-2 md:mb-0">
+                        <h2 class="text-2xl md:text-3xl font-black text-yellow-400 tracking-wider">FAST MONEY</h2>
+                        <p class="text-blue-200 text-sm md:text-lg font-bold">${player === 'p1' ? 'PLAYER 1' : 'PLAYER 2'}</p>
+                    </div>
+                    <div class="flex items-center gap-4 md:gap-6">
+                        <div id="timer-display" class="text-4xl md:text-6xl font-mono font-black ${store.fmTimer <= 5 && store.isTimerRunning ? 'text-red-500 animate-pulse' : 'text-white drop-shadow-md'}">
+                            ${store.fmTimer}s
+                        </div>
+                        <button onclick="toggleTimer()" class="px-4 md:px-6 py-2 md:py-3 rounded-xl font-black text-sm md:text-lg shadow-lg transform transition active:scale-95 ${store.isTimerRunning ? 'bg-red-600 hover:bg-red-500 text-white' : 'bg-green-500 hover:bg-green-400 text-blue-900'}">
+                            ${store.isTimerRunning ? 'PAUSE' : 'START TIMER'}
+                        </button>
+                    </div>
+                </div>
+                <div class="flex-1 space-y-3 md:space-y-4 overflow-y-auto pr-1 md:pr-2 pb-4">
+                    ${inputsHtml}
+                </div>
+                <button onclick="stopTimer(); store.phase='${nextPhase}'; renderApp()" class="mt-4 md:mt-8 w-full bg-gradient-to-r from-yellow-500 to-yellow-400 hover:from-yellow-400 hover:to-yellow-300 text-blue-900 font-black text-xl md:text-2xl py-4 md:py-5 rounded-xl shadow-xl flex justify-center items-center gap-3 transform transition hover:scale-[1.01] active:scale-95">
+                    SUBMIT ANSWERS <i data-lucide="arrow-right" class="w-6 h-6 md:w-8 md:h-8"></i>
                 </button>
-            );
-        };
-
-        const Input = ({ label, className="", ...props }) => (
-            <div className={`mb-4 ${className}`}>
-                {label && <label className="block text-xs font-bold text-gray-500 uppercase mb-1">{label}</label>}
-                <input className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm" {...props} />
-            </div>
-        );
-
-        const Select = ({ label, options, className="", ...props }) => (
-            <div className={`mb-4 ${className}`}>
-                {label && <label className="block text-xs font-bold text-gray-500 uppercase mb-1">{label}</label>}
-                <select className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm" {...props}>
-                    {options.map((opt, idx) => (
-                        <option key={opt.value || idx} value={opt.value} disabled={opt.disabled}>{opt.label}</option>
-                    ))}
-                </select>
-            </div>
-        );
-
-        // --- Custom Dialog ---
-        const CustomDialog = ({ isOpen, type, message, defaultValue, onConfirm, onClose }) => {
-            const [inputVal, setInputVal] = useState('');
-            useEffect(() => { if (isOpen) setInputVal(defaultValue || ''); }, [isOpen, defaultValue]);
-            if (!isOpen) return null;
-
-            return (
-                <div className="fixed inset-0 bg-black/60 z-[100] flex items-center justify-center p-4">
-                    <div className="bg-white rounded-lg shadow-xl max-w-sm w-full p-6 animate-in fade-in zoom-in duration-200">
-                        <h3 className="text-lg font-bold mb-2 capitalize">{type === 'alert' ? 'Notice' : type === 'confirm' ? 'Confirm Action' : 'Input Required'}</h3>
-                        <p className="text-gray-600 mb-4 whitespace-pre-wrap">{message}</p>
-                        {type === 'prompt' && (
-                            <input 
-                                className="w-full border p-2 rounded mb-4 focus:ring-2 focus:ring-indigo-500 outline-none"
-                                value={inputVal}
-                                onChange={(e) => setInputVal(e.target.value)}
-                                onKeyDown={(e) => e.key === 'Enter' && onConfirm(inputVal)}
-                                autoFocus
-                            />
-                        )}
-                        <div className="flex justify-end gap-2">
-                            {type !== 'alert' && <button onClick={onClose} className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded">Cancel</button>}
-                            <button onClick={() => type === 'prompt' ? onConfirm(inputVal) : onConfirm()} className="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700">
-                                {type === 'alert' ? 'OK' : 'Confirm'}
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )
-        };
-
-        // --- Sub-Components ---
-
-        const RoomSwapModal = ({ sourceRoom, data, setData, logAction, onClose, dialogs }) => {
-            const [targetRoomId, setTargetRoomId] = useState('');
-
-            const handleSwap = () => {
-                if (!targetRoomId) {
-                    dialogs.showAlert("Please select a room to swap with.");
-                    return;
-                }
-                const targetFloor = data.floors.find(f => f.rooms.some(r => r.id === targetRoomId));
-                const targetRoom = targetFloor?.rooms.find(r => r.id === targetRoomId);
-                if (!targetRoom) return;
-
-                dialogs.showConfirm(`CONFIRM ROOM SWAP:\n\nThis will swap Name, Status, and ALL Equipment between:\n\n[ ${sourceRoom.name} ] <--> [ ${targetRoom.name} ]\n\nAre you sure?`, () => {
-                    const newFloors = data.floors.map(f => ({
-                        ...f,
-                        rooms: f.rooms.map(r => {
-                            if (r.id === sourceRoom.id) return { ...r, name: targetRoom.name, status: targetRoom.status };
-                            else if (r.id === targetRoom.id) return { ...r, name: sourceRoom.name, status: sourceRoom.status };
-                            return r;
-                        })
-                    }));
-
-                    const newItems = data.items.map(item => {
-                        if (item.locationId === sourceRoom.id) return { ...item, locationId: targetRoom.id, location: sourceRoom.name };
-                        else if (item.locationId === targetRoom.id) return { ...item, locationId: sourceRoom.id, location: targetRoom.name };
-                        return item;
-                    });
-
-                    setData(prev => ({ ...prev, floors: newFloors, items: newItems }));
-                    logAction('Room Swap', `Swapped Room ${sourceRoom.name} with ${targetRoom.name}`);
-                    onClose();
-                });
-            };
-
-            return (
-                <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-                    <div className="bg-white rounded-lg shadow-xl w-full max-w-md p-6">
-                        <div className="flex justify-between items-center mb-4">
-                            <h3 className="text-xl font-bold">Swap Room</h3>
-                            <button onClick={onClose}><X size={20} className="text-gray-500 hover:text-gray-700"/></button>
-                        </div>
-                        <div className="bg-blue-50 p-4 rounded-lg mb-6 border border-blue-100">
-                            <p className="text-sm text-blue-800 font-medium mb-2">Source Room:</p>
-                            <div className="flex justify-between items-center bg-white p-2 rounded border border-blue-200">
-                                <span className="font-bold text-gray-800">{sourceRoom.name}</span>
-                                <Badge color="blue">{sourceRoom.status}</Badge>
-                            </div>
-                        </div>
-                        <div className="flex justify-center -my-9 relative z-10">
-                            <div className="bg-white p-2 rounded-full border border-gray-200 shadow-sm"><ArrowUpDown size={20} className="text-gray-400" /></div>
-                        </div>
-                        <div className="mt-6 mb-6">
-                            <label className="block text-sm font-bold text-gray-700 mb-2">Select Target Room:</label>
-                            <select className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-indigo-500 outline-none" value={targetRoomId} onChange={(e) => setTargetRoomId(e.target.value)}>
-                                <option value="">-- Select Room to Swap With --</option>
-                                {data.floors.map(floor => {
-                                    const floorRooms = floor.rooms
-                                        .filter(r => r.id !== sourceRoom.id)
-                                        .sort((a, b) => a.id.localeCompare(b.id, undefined, { numeric: true }));
-                                    
-                                    if (floorRooms.length === 0) return null;
-
-                                    return (
-                                        <optgroup key={floor.id} label={`${floor.name} (${floor.code})`}>
-                                            {floorRooms.map(r => (
-                                                <option key={r.id} value={r.id}>
-                                                    [{r.id}] {r.name} ({r.status})
-                                                </option>
-                                            ))}
-                                        </optgroup>
-                                    );
-                                })}
-                            </select>
-                        </div>
-                        <div className="flex justify-end gap-2">
-                            <Button variant="secondary" onClick={onClose}>Cancel</Button>
-                            <Button onClick={handleSwap} disabled={!targetRoomId}><ArrowRightLeft size={16} className="mr-2" /> Confirm Swap</Button>
-                        </div>
-                    </div>
-                </div>
-            );
-        };
-
-        const UserModal = ({ userToEdit, onSave, onClose, dialogs }) => {
-            const [formData, setFormData] = useState({ username: '', password: '', name: '', role: ROLES.OPERATOR });
-            const [showPassword, setShowPassword] = useState(false);
-
-            useEffect(() => { if(userToEdit) setFormData(userToEdit); }, [userToEdit]);
-            const handleSave = () => {
-                if(!formData.username || !formData.password || !formData.name) { dialogs.showAlert("Please fill in all fields"); return; }
-                onSave(formData);
-            };
-            return (
-                <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-                    <div className="bg-white rounded-lg shadow-xl w-full max-w-md p-6">
-                        <h3 className="text-xl font-bold mb-4">{userToEdit ? 'Edit User' : 'Add New User'}</h3>
-                        <Input label="Full Name" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} />
-                        <Input label="Username" value={formData.username} onChange={e => setFormData({...formData, username: e.target.value})} />
-                        
-                        <div className="mb-4">
-                            <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Password</label>
-                            <div className="relative">
-                                <input 
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm pr-10" 
-                                    type={showPassword ? "text" : "password"} 
-                                    value={formData.password} 
-                                    onChange={e => setFormData({...formData, password: e.target.value})} 
-                                />
-                                <button 
-                                    type="button" 
-                                    onClick={() => setShowPassword(!showPassword)} 
-                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                                >
-                                    {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                                </button>
-                            </div>
-                        </div>
-
-                        <Select label="Role" value={formData.role} onChange={e => setFormData({...formData, role: e.target.value})} options={Object.values(ROLES).map(r => ({ label: r, value: r }))} />
-                        <div className="flex justify-end gap-2 mt-6">
-                            <Button variant="secondary" onClick={onClose}>Cancel</Button>
-                            <Button onClick={handleSave}>Save User</Button>
-                        </div>
-                    </div>
-                </div>
-            );
-        };
-
-        const ProfileModal = ({ user, onUpdate, onClose, dialogs }) => {
-            const [newName, setNewName] = useState(user.name);
-            const [newPass, setNewPass] = useState(user.password);
-            const [showPassword, setShowPassword] = useState(false);
-            const handleSave = () => {
-                dialogs.showConfirm("Are you sure you want to update your profile?", () => {
-                    onUpdate({ ...user, name: newName, password: newPass });
-                    onClose();
-                });
-            };
-            return (
-                <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-                    <div className="bg-white rounded-lg shadow-xl w-full max-w-md p-6">
-                        <h2 className="text-xl font-bold mb-4">Profile Settings</h2>
-                        <Input label="Display Name" value={newName} onChange={e => setNewName(e.target.value)} />
-                        <div className="mb-4">
-                            <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Password</label>
-                            <div className="relative">
-                                <input className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm pr-10" type={showPassword ? "text" : "password"} value={newPass} onChange={e => setNewPass(e.target.value)} />
-                                <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
-                                    {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                                </button>
-                            </div>
-                        </div>
-                        <div className="flex justify-end gap-2 mt-6">
-                            <Button variant="secondary" onClick={onClose}>Cancel</Button>
-                            <Button onClick={handleSave}>Save Changes</Button>
-                        </div>
-                    </div>
-                </div>
-            )
-        };
-
-        const UserCard = ({ user, onEdit, onDelete }) => {
-            const [showPassword, setShowPassword] = useState(false);
-            return (
-                <Card className="p-4 flex flex-col justify-between">
-                    <div>
-                        <div className="flex justify-between items-start">
-                            <div className="flex items-center gap-3">
-                                <div className="bg-indigo-100 p-2 rounded-full text-indigo-600"><User size={20} /></div>
-                                <div><h4 className="font-bold text-gray-900">{user.name}</h4><p className="text-xs text-gray-500">@{user.username}</p></div>
-                            </div>
-                            <div className="flex gap-2">
-                                <button onClick={() => onEdit(user)} className="text-gray-400 hover:text-indigo-600"><Edit size={16}/></button>
-                                <button onClick={() => onDelete(user.id)} className="text-gray-400 hover:text-red-600"><Trash2 size={16}/></button>
-                            </div>
-                        </div>
-                        <div className="mt-4 flex items-center gap-2 text-xs text-gray-600 bg-gray-50 p-2 rounded"><Shield size={12} className="text-indigo-500" />{user.role}</div>
-                    </div>
-                    <div className="mt-2 pt-2 border-t border-gray-100 flex items-center justify-between text-xs text-gray-400">
-                        <div className="flex items-center gap-2"><Key size={12} /> <span>Password: {showPassword ? user.password : '••••••••'}</span></div>
-                        <button onClick={() => setShowPassword(!showPassword)} className="text-indigo-500 hover:text-indigo-700">{showPassword ? <EyeOff size={14}/> : <Eye size={14}/>}</button>
-                    </div>
-                </Card>
-            )
+            </div>`;
         }
 
-        const ContentManager = ({ targetId, targetName, type, data, setData, dialogs, logAction, initialMode = 'view', onClose }) => {
-            const [mode, setMode] = useState(initialMode); 
-            const [selectedItems, setSelectedItems] = useState([]); 
-            const [transferTarget, setTransferTarget] = useState('');
-            const [swapTarget, setSwapTarget] = useState('');
+        function renderFastMoneyReveal(player) {
+            const pointsArray = player === 'p1' ? store.fmAnswers.p1Points : store.fmAnswers.p2Points;
+            
+            let questionsHtml = store.fastMoneyData.map((item, idx) => {
+                const surveyBtns = item.answers.map((sa, i) => 
+                    `<button onclick="assignFmPoints('${player}', ${idx}, ${sa.points})" class="px-2 md:px-3 py-1 md:py-2 text-xs md:text-sm font-bold rounded-lg border-2 transition-all ${pointsArray[idx] === sa.points ? 'bg-green-600 border-green-400 text-white' : 'bg-blue-950 border-blue-700 text-blue-300 hover:border-blue-500'}">
+                        ${sa.text} <span class="text-yellow-400 ml-1">(${sa.points})</span>
+                    </button>`
+                ).join('');
 
-            const currentItems = data.items.filter(i => i.locationId === targetId);
-            const availableItems = data.items.filter(i => i.location === 'Unassigned' && i.status !== 'Pullout');
-
-            const groupedAvailableItems = useMemo(() => {
-                const groups = {};
-                availableItems.forEach(item => {
-                    const cat = item.category || 'Uncategorized';
-                    const sub = item.subCategory || 'General';
-                    if (!groups[cat]) groups[cat] = {};
-                    if (!groups[cat][sub]) groups[cat][sub] = [];
-                    groups[cat][sub].push(item);
-                });
-                return groups;
-            }, [availableItems]);
-
-            const groupedCurrentItems = useMemo(() => {
-                const groups = {};
-                currentItems.forEach(item => {
-                    const cat = item.category || 'Uncategorized';
-                    const sub = item.subCategory || 'General';
-                    if (!groups[cat]) groups[cat] = {};
-                    if (!groups[cat][sub]) groups[cat][sub] = [];
-                    groups[cat][sub].push(item);
-                });
-                return groups;
-            }, [currentItems]);
-
-            const handleToggleSelect = (itemId) => {
-                if (selectedItems.includes(itemId)) setSelectedItems(prev => prev.filter(id => id !== itemId));
-                else setSelectedItems(prev => [...prev, itemId]);
-            };
-
-            const handleAddItems = () => {
-                if (selectedItems.length === 0) return;
-                dialogs.showConfirm(`Add ${selectedItems.length} items to ${targetName}?`, () => {
-                    setData(prev => ({
-                        ...prev,
-                        items: prev.items.map(i => selectedItems.includes(i.id) ? { ...i, location: targetName, locationId: targetId, type: type } : i)
-                    }));
-                    logAction('Batch Add', `Moved ${selectedItems.length} items to ${targetName}`);
-                    setMode('view');
-                    setSelectedItems([]);
-                });
-            };
-
-            const handleRemoveItem = (itemId) => {
-                dialogs.showConfirm(`Remove item ${itemId} from ${targetName}?`, () => {
-                    setData(prev => ({
-                        ...prev,
-                        items: prev.items.map(i => i.id === itemId ? { ...i, location: 'Unassigned', locationId: '', type: 'none' } : i)
-                    }));
-                    logAction('Remove Item', `Removed item ${itemId} from ${targetName}`);
-                });
-            };
-
-            const handleTransferSelected = () => {
-                if (!transferTarget || selectedItems.length === 0) { dialogs.showAlert("Please select items and a destination."); return; }
-                const tRoom = data.floors.flatMap(f => f.rooms).find(r => r.id === transferTarget);
-                const tBox = data.boxes.find(b => b.id === transferTarget);
-                let tName = tRoom ? tRoom.name : tBox ? tBox.name : '';
-                let tType = tRoom ? 'room' : tBox ? 'box' : '';
-                if (!tName) return;
-
-                dialogs.showConfirm(`Transfer ${selectedItems.length} items to ${tName}?`, () => {
-                    setData(prev => ({
-                        ...prev,
-                        items: prev.items.map(i => selectedItems.includes(i.id) ? { ...i, location: tName, locationId: transferTarget, type: tType } : i)
-                    }));
-                    logAction('Transfer Selected', `Transferred ${selectedItems.length} items from ${targetName} to ${tName}`);
-                    setMode('view');
-                    setSelectedItems([]);
-                });
-            };
-
-            const handleSwapAll = () => {
-                if (!swapTarget) { dialogs.showAlert("Please select a target to swap with."); return; }
-                const room = data.floors.flatMap(f => f.rooms).find(r => r.id === swapTarget);
-                const box = data.boxes.find(b => b.id === swapTarget);
-                let targetNameStr = room ? room.name : box ? box.name : '';
-                let targetTypeStr = room ? 'room' : box ? 'box' : '';
-
-                dialogs.showConfirm(`CRITICAL: Swap ALL contents between ${targetName} and ${targetNameStr}?`, () => {
-                    setData(prev => ({
-                        ...prev,
-                        items: prev.items.map(i => {
-                            if (i.locationId === targetId) return { ...i, locationId: swapTarget, location: targetNameStr, type: targetTypeStr };
-                            else if (i.locationId === swapTarget) return { ...i, locationId: targetId, location: targetName, type: type };
-                            return i;
-                        })
-                    }));
-                    logAction('Swap Content', `Swapped items between ${targetName} and ${targetNameStr}`);
-                    setMode('view');
-                });
-            };
-
-            const handleToggleCondition = (itemId, currentCondition) => {
-                const newCondition = currentCondition === 'Working' ? 'Defective' : 'Working';
-                dialogs.showConfirm(`Mark item ${itemId} as ${newCondition}?`, () => {
-                    setData(prev => ({
-                        ...prev,
-                        items: prev.items.map(i => i.id === itemId ? { ...i, condition: newCondition } : i)
-                    }));
-                    logAction('Condition Change', `Item ${itemId} marked as ${newCondition} in ${targetName}`);
-                });
-            };
-
-            return (
-                <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-                    <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl flex flex-col max-h-[90vh]">
-                        <div className="p-4 border-b flex justify-between items-center bg-gray-50 rounded-t-xl">
-                            <div><h3 className="text-lg font-bold">Managing: {targetName}</h3><p className="text-xs text-gray-500">{currentItems.length} items assigned</p></div>
-                            <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><X /></button>
-                        </div>
-                        <div className="p-4 border-b flex gap-2 overflow-x-auto">
-                            <Button size="sm" variant={mode === 'view' ? 'primary' : 'secondary'} onClick={() => {setMode('view'); setSelectedItems([]);}}><Eye size={14} /> View</Button>
-                            <Button size="sm" variant={mode === 'add' ? 'primary' : 'secondary'} onClick={() => {setMode('add'); setSelectedItems([]);}}><Plus size={14} /> Add Items</Button>
-                            <Button size="sm" variant={mode === 'transfer' ? 'primary' : 'secondary'} onClick={() => {setMode('transfer'); setSelectedItems([]);}}><Truck size={14} /> Transfer</Button>
-                            {type !== 'room' && <Button size="sm" variant={mode === 'swap' ? 'primary' : 'secondary'} onClick={() => {setMode('swap'); setSelectedItems([]);}}><ArrowRightLeft size={14} /> Swap All</Button>}
-                        </div>
-                        <div className="flex-1 overflow-y-auto p-4">
-                            {mode === 'view' && (
-                                <div className="space-y-2">
-                                    {currentItems.length > 0 ? (
-                                        Object.keys(groupedCurrentItems).sort().map(cat => (
-                                            <div key={cat} className="mb-4 border rounded-lg overflow-hidden">
-                                                <div className="bg-gray-100 px-4 py-2 font-bold text-xs text-gray-700 uppercase tracking-wider border-b border-gray-200">{cat}</div>
-                                                {Object.keys(groupedCurrentItems[cat]).sort().map(sub => (
-                                                    <div key={sub}>
-                                                        <div className="bg-gray-50 px-4 py-1.5 text-[11px] font-bold text-gray-500 pl-6 border-b border-gray-100 uppercase tracking-wide flex justify-between">
-                                                            <span>{sub}</span>
-                                                            <span className="text-gray-400">{groupedCurrentItems[cat][sub].length} items</span>
-                                                        </div>
-                                                        <div className="divide-y divide-gray-50">
-                                                            {groupedCurrentItems[cat][sub].map(item => (
-                                                                <div key={item.id} className="flex justify-between items-center p-2 pl-8 hover:bg-gray-50">
-                                                                    <div className="flex items-center gap-3">
-                                                                        <span className="font-mono text-xs bg-indigo-50 text-indigo-600 px-1 rounded">{item.id}</span>
-                                                                        <div className="flex flex-col items-start gap-1">
-                                                                            <span className="font-medium text-sm">{item.name}</span>
-                                                                            <button onClick={() => handleToggleCondition(item.id, item.condition)} className={`px-1.5 py-0.5 rounded border text-[10px] ${item.condition === 'Defective' ? 'bg-red-50 text-red-600 border-red-200' : 'bg-green-50 text-green-600 border-green-200'} hover:opacity-80 transition-opacity`} title="Click to toggle condition">{item.condition || 'Working'}</button>
-                                                                        </div>
-                                                                    </div>
-                                                                    <Button size="sm" variant="danger" onClick={() => handleRemoveItem(item.id)}><LogOut size={12} /> Remove</Button>
-                                                                </div>
-                                                            ))}
-                                                        </div>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        ))
-                                    ) : <div className="text-center py-10 text-gray-400"><Box size={40} className="mx-auto mb-2 opacity-20" /><p>This location is empty.</p></div>}
-                                </div>
-                            )}
-                            {mode === 'add' && (
-                                <div className="space-y-4">
-                                    <div className="flex justify-between items-center"><p className="text-sm font-bold">Select items to add from Inventory:</p><span className="text-xs text-gray-500">{selectedItems.length} selected</span></div>
-                                    <div className="border rounded-lg max-h-[60vh] overflow-y-auto bg-white shadow-inner">
-                                        {availableItems.length > 0 ? (
-                                            Object.keys(groupedAvailableItems).sort().map(cat => (
-                                                <div key={cat} className="border-b last:border-0">
-                                                    <div className="bg-gray-100 px-4 py-2 font-bold text-xs text-gray-700 uppercase tracking-wider sticky top-0 z-10 shadow-sm border-b border-gray-200">{cat}</div>
-                                                    {Object.keys(groupedAvailableItems[cat]).sort().map(sub => (
-                                                        <div key={sub}>
-                                                            <div className="bg-gray-50 px-4 py-1.5 text-[11px] font-bold text-gray-500 pl-6 border-b border-gray-100 uppercase tracking-wide">{sub}</div>
-                                                            <div className="divide-y divide-gray-50">
-                                                                {groupedAvailableItems[cat][sub].map(item => (
-                                                                    <div key={item.id} className={`py-2 px-4 pl-8 flex items-center gap-3 cursor-pointer transition-colors ${selectedItems.includes(item.id) ? 'bg-indigo-50' : 'hover:bg-gray-50'}`} onClick={() => handleToggleSelect(item.id)}>
-                                                                        {selectedItems.includes(item.id) ? <CheckSquare size={16} className="text-indigo-600 shrink-0"/> : <Square size={16} className="text-gray-300 shrink-0"/>}
-                                                                        <span className="font-mono text-xs text-gray-400 shrink-0 w-16">{item.id}</span>
-                                                                        <span className="text-sm font-medium text-gray-700">{item.name}</span>
-                                                                    </div>
-                                                                ))}
-                                                            </div>
-                                                        </div>
-                                                    ))}
-                                                </div>
-                                            ))
-                                        ) : (
-                                            <div className="p-8 text-center text-gray-400 italic">
-                                                <Box size={40} className="mx-auto mb-2 opacity-20" />
-                                                <p>No available items in inventory.</p>
-                                            </div>
-                                        )}
-                                    </div>
-                                    <Button className="w-full" onClick={handleAddItems} disabled={selectedItems.length === 0}>Confirm Add Selected Items</Button>
-                                </div>
-                            )}
-                            {mode === 'transfer' && (
-                                <div className="space-y-4">
-                                    <div className="bg-blue-50 p-4 rounded-lg border border-blue-100"><h4 className="font-bold text-blue-900 mb-2">Transfer Selected Items</h4><p className="text-xs text-blue-700">Select items from <strong>{targetName}</strong> to move to another location.</p></div>
-                                    <div className="border rounded-lg max-h-48 overflow-y-auto">
-                                        {currentItems.length > 0 ? (
-                                             Object.keys(groupedCurrentItems).sort().map(cat => (
-                                                <div key={cat} className="border-b last:border-0">
-                                                    <div className="bg-gray-100 px-4 py-2 font-bold text-xs text-gray-700 uppercase tracking-wider sticky top-0 z-10 shadow-sm border-b border-gray-200">{cat}</div>
-                                                    {Object.keys(groupedCurrentItems[cat]).sort().map(sub => (
-                                                        <div key={sub}>
-                                                            <div className="bg-gray-50 px-4 py-1.5 text-[11px] font-bold text-gray-500 pl-6 border-b border-gray-100 uppercase tracking-wide">{sub}</div>
-                                                            <div className="divide-y divide-gray-50">
-                                                                {groupedCurrentItems[cat][sub].map(item => (
-                                                                    <div key={item.id} className={`py-2 px-4 pl-8 flex items-center gap-3 cursor-pointer transition-colors ${selectedItems.includes(item.id) ? 'bg-indigo-50' : 'hover:bg-gray-50'}`} onClick={() => handleToggleSelect(item.id)}>
-                                                                        {selectedItems.includes(item.id) ? <CheckSquare size={16} className="text-indigo-600 shrink-0"/> : <Square size={16} className="text-gray-300 shrink-0"/>}
-                                                                        <span className="font-mono text-xs text-gray-400 shrink-0 w-16">{item.id}</span>
-                                                                        <span className="text-sm font-medium text-gray-700">{item.name}</span>
-                                                                    </div>
-                                                                ))}
-                                                            </div>
-                                                        </div>
-                                                    ))}
-                                                </div>
-                                            ))
-                                        ) : <p className="p-4 text-center text-gray-400 italic">This location is empty.</p>}
-                                    </div>
-                                    <div className="pt-2">
-                                        <Select label="Destination" value={transferTarget} onChange={e => setTransferTarget(e.target.value)} options={[
-                                            { value: '', label: 'Select Destination...' },
-                                            { label: '--- Rooms ---', value: 'disabled-rooms', disabled: true },
-                                            ...data.floors.flatMap(f => f.rooms.filter(r => r.id !== targetId).map(r => ({ value: r.id, label: `Room: ${r.name}` }))),
-                                            { label: '--- Boxes ---', value: 'disabled-boxes', disabled: true },
-                                            ...data.boxes.filter(b => b.id !== targetId).map(b => ({ value: b.id, label: `Box: ${b.name}` }))
-                                        ]} />
-                                        <Button className="w-full" onClick={handleTransferSelected} disabled={selectedItems.length === 0 || !transferTarget}>Transfer {selectedItems.length} Items</Button>
-                                    </div>
-                                </div>
-                            )}
-                            {mode === 'swap' && (
-                                <div className="space-y-4 text-center py-4">
-                                    <div className="bg-orange-50 p-4 rounded-lg border border-orange-200 inline-block mb-4"><AlertOctagon size={32} className="text-orange-500 mx-auto mb-2" /><p className="font-bold text-orange-800">Critical Action: Swap Content</p><p className="text-xs text-orange-700 mt-1 max-w-xs">This will exchange ALL items in <strong>{targetName}</strong> with the selected location.</p></div>
-                                    <Select label={`Select Target to Swap With`} value={swapTarget} onChange={e => setSwapTarget(e.target.value)} options={[
-                                        { value: '', label: 'Choose Target...' },
-                                        { label: '--- Rooms ---', value: 'disabled-swap-rooms', disabled: true },
-                                        ...(type === 'room' ? data.floors.flatMap(f => f.rooms.filter(r => r.id !== targetId).map(r => ({ value: r.id, label: `Room: ${r.name}` }))) : data.boxes.filter(b => b.id !== targetId).map(b => ({ value: b.id, label: `Box: ${b.name}` })))
-                                    ]} />
-                                    <Button className="w-full" variant="danger" onClick={handleSwapAll} disabled={!swapTarget}>Confirm Swap Operation</Button>
-                                </div>
-                            )}
-                        </div>
-                    </div>
-                </div>
-            );
-        };
-
-        const ReportGenerator = ({ data }) => {
-            const [reportFilter, setReportFilter] = useState('All');
-            useEffect(() => {
-                if (!window.html2pdf) {
-                    const script = document.createElement('script');
-                    script.src = "https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js";
-                    script.async = true;
-                    document.body.appendChild(script);
-                    return () => { document.body.removeChild(script); };
-                }
-            }, []);
-
-            const filteredItems = useMemo(() => {
-                switch (reportFilter) {
-                    case 'Active': return data.items.filter(i => i.status === 'Active');
-                    case 'Defective': return data.items.filter(i => i.condition === 'Defective');
-                    case 'Pullout': return data.items.filter(i => i.status === 'Pullout');
-                    default: return data.items;
-                }
-            }, [data.items, reportFilter]);
-
-            const stats = {
-                total: data.items.length,
-                active: data.items.filter(i => i.status === 'Active').length,
-                defective: data.items.filter(i => i.condition === 'Defective').length,
-                pullout: data.items.filter(i => i.status === 'Pullout').length,
-                totalRooms: data.floors.reduce((acc, f) => acc + f.rooms.length, 0),
-                occupiedRooms: data.floors.reduce((acc, f) => acc + f.rooms.filter(r => r.status === 'Occupied').length, 0),
-                vacantRooms: data.floors.reduce((acc, f) => acc + f.rooms.filter(r => r.status === 'Vacant').length, 0),
-                maintenanceRooms: data.floors.reduce((acc, f) => acc + f.rooms.filter(r => r.status === 'Maintenance').length, 0)
-            };
-
-            const getGroupedItems = () => {
-                const storageItems = filteredItems.filter(i => i.location === 'Unassigned' && i.status !== 'Pullout');
-                const roomItems = filteredItems.filter(i => i.type === 'room');
-                const boxItems = filteredItems.filter(i => i.type === 'box');
-
-                const storageGrouped = {};
-                storageItems.forEach(i => {
-                    if (!storageGrouped[i.category]) storageGrouped[i.category] = {};
-                    if (!storageGrouped[i.category][i.subCategory]) storageGrouped[i.category][i.subCategory] = [];
-                    storageGrouped[i.category][i.subCategory].push(i);
-                });
-
-                const roomGrouped = {};
-                data.floors.forEach(floor => {
-                    floor.rooms.forEach(room => {
-                        const itemsInRoom = roomItems.filter(i => i.locationId === room.id);
-                        if (itemsInRoom.length > 0) {
-                            if (!roomGrouped[floor.name]) roomGrouped[floor.name] = [];
-                            roomGrouped[floor.name].push({ room, items: itemsInRoom });
-                        }
-                    });
-                });
-
-                const boxGrouped = [];
-                data.boxes.forEach(box => {
-                    const itemsInBox = boxItems.filter(i => i.locationId === box.id);
-                    if (itemsInBox.length > 0) boxGrouped.push({ box, items: itemsInBox });
-                });
-                return { storageGrouped, roomGrouped, boxGrouped };
-            };
-
-            const { storageGrouped, roomGrouped, boxGrouped } = getGroupedItems();
-
-            const handleDownloadPDF = () => {
-                const element = document.getElementById('report-content');
-                if (window.html2pdf) {
-                    const opt = { 
-                        margin: 10, 
-                        filename: `IMS_Report_${new Date().toISOString().split('T')[0]}.pdf`, 
-                        image: { type: 'jpeg', quality: 0.98 }, 
-                        html2canvas: { scale: 2, useCORS: true }, 
-                        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
-                        pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
-                    };
-                    window.html2pdf().set(opt).from(element).save();
-                } else {
-                    alert("PDF Generator is loading...");
-                }
-            };
-
-            return (
-                <div className="p-8 text-center space-y-8 animate-in fade-in bg-white min-h-[500px]">
-                    <div className="flex justify-between items-center bg-gray-50 p-4 rounded-lg border border-gray-200 print:hidden">
-                        <div className="flex items-center gap-2">
-                            <Filter size={20} className="text-gray-500" />
-                            <span className="text-sm font-bold text-gray-700">Filter Report:</span>
-                            <select className="border rounded p-1 text-sm outline-none focus:ring-2 focus:ring-indigo-500" value={reportFilter} onChange={(e) => setReportFilter(e.target.value)}>
-                                <option value="All">All Inventory</option>
-                                <option value="Active">Active Only</option>
-                                <option value="Defective">Defective Only</option>
-                                <option value="Pullout">Pullout / Disposal</option>
-                            </select>
-                        </div>
-                        <Button size="lg" onClick={handleDownloadPDF} className="shadow-md bg-indigo-600 hover:bg-indigo-700 text-white"><Download className="mr-2" size={18} /> Generate PDF</Button>
-                    </div>
-                    <div id="report-content" className="print-preview max-w-5xl mx-auto text-left bg-white p-4">
-                        <div className="flex justify-between items-end border-b-2 border-gray-900 pb-4 mb-8 break-inside-avoid">
-                            <div><h1 className="text-4xl font-black text-gray-900 tracking-tight uppercase">Inventory Report</h1><p className="text-gray-500 font-medium mt-1 uppercase tracking-widest text-xs">Filter: {reportFilter} • Generated: {new Date().toLocaleDateString('en-US', { timeZone: 'Asia/Manila' })}</p></div>
-                            <div className="text-right"><h2 className="text-xl font-bold text-gray-400">IMS</h2><p className="text-xs text-gray-400">Operation Department</p></div>
-                        </div>
-                        <div className="grid grid-cols-4 gap-4 mb-4 break-inside-avoid">
-                            <div className="p-4 bg-gray-50 border rounded-lg text-center"><p className="text-xs font-bold text-gray-500 uppercase">Total Assets</p><p className="text-2xl font-black text-gray-900">{stats.total}</p></div>
-                            <div className="p-4 bg-green-50 border border-green-100 rounded-lg text-center"><p className="text-xs font-bold text-green-700 uppercase">Active</p><p className="text-2xl font-black text-green-700">{stats.active}</p></div>
-                            <div className="p-4 bg-red-50 border border-red-100 rounded-lg text-center"><p className="text-xs font-bold text-red-700 uppercase">Defective</p><p className="text-2xl font-black text-red-700">{stats.defective}</p></div>
-                            <div className="p-4 bg-orange-50 border border-orange-100 rounded-lg text-center"><p className="text-xs font-bold text-orange-700 uppercase">Disposal</p><p className="text-2xl font-black text-orange-700">{stats.pullout}</p></div>
-                        </div>
-                        <div className="grid grid-cols-4 gap-4 mb-8 break-inside-avoid">
-                             <div className="p-3 bg-gray-50 border rounded text-center"><p className="text-[10px] font-bold text-gray-400 uppercase">Total Rooms</p><p className="text-xl font-bold text-gray-800">{stats.totalRooms}</p></div>
-                             <div className="p-3 bg-blue-50 border border-blue-100 rounded text-center"><p className="text-[10px] font-bold text-blue-400 uppercase">Occupied</p><p className="text-xl font-bold text-blue-700">{stats.occupiedRooms}</p></div>
-                             <div className="p-3 bg-green-50 border border-green-100 rounded text-center"><p className="text-[10px] font-bold text-green-400 uppercase">Vacant</p><p className="text-xl font-bold text-green-700">{stats.vacantRooms}</p></div>
-                             <div className="p-3 bg-yellow-50 border border-yellow-100 rounded text-center"><p className="text-[10px] font-bold text-yellow-500 uppercase">Maintenance</p><p className="text-xl font-bold text-yellow-700">{stats.maintenanceRooms}</p></div>
-                        </div>
-                        <div className="mb-10 break-inside-avoid">
-                            <h3 className="font-bold text-white bg-gray-900 px-4 py-2 uppercase tracking-wider text-sm rounded-t-lg">A. Storage Inventory</h3>
-                            <div className="border border-t-0 rounded-b-lg p-4 bg-white">
-                                {Object.keys(storageGrouped).length === 0 ? <p className="text-gray-400 text-sm italic">No items.</p> : Object.keys(storageGrouped).map(cat => (
-                                    <div key={cat} className="mb-6 last:mb-0 break-inside-avoid"><h4 className="font-bold text-indigo-700 border-b border-indigo-100 pb-1 mb-2 text-sm">{cat}</h4>
-                                        {Object.keys(storageGrouped[cat]).map(sub => {
-                                            const items = storageGrouped[cat][sub];
-                                            const counts = items.reduce((acc, i) => { acc[i.name] = (acc[i.name] || 0) + 1; return acc; }, {});
-                                            return (
-                                                <div key={sub} className="mb-4 ml-4 break-inside-avoid"><h5 className="font-semibold text-xs text-gray-600 uppercase tracking-wide mb-2">{sub}</h5>
-                                                    <table className="w-full text-xs text-left"><thead><tr className="bg-gray-50 text-gray-500 border-b"><th className="py-1 px-2">Item Name</th><th className="py-1 px-2 text-right">Quantity</th></tr></thead><tbody>{Object.entries(counts).map(([name, count]) => <tr key={name} className="border-b border-gray-100 break-inside-avoid"><td className="py-1 px-2">{name}</td><td className="py-1 px-2 text-right font-mono font-bold">{count}</td></tr>)}</tbody></table>
-                                                </div>
-                                            );
-                                        })}
-                                    </div>
-                                ))}
+                return `
+                <div class="flex flex-col bg-blue-800 p-3 md:p-4 rounded-xl border border-blue-700 shadow-lg">
+                    <p class="text-blue-300 text-[10px] md:text-xs font-bold uppercase mb-2">Q${idx+1}: ${item.question}</p>
+                    <div class="flex flex-col gap-2">
+                        <!-- P1 -->
+                        <div class="flex-1">
+                            <div class="h-10 md:h-14 flex items-center justify-between px-2 md:px-4 rounded-lg border-2 ${player === 'p2' ? 'bg-blue-900/50 border-blue-800 text-gray-400' : 'bg-gradient-to-r from-blue-600 to-blue-500 border-blue-400 shadow-inner'}">
+                                <span class="font-bold text-sm md:text-lg uppercase truncate mr-2">${store.fmAnswers.p1[idx] || "-"}</span>
+                                <span class="font-mono text-lg md:text-2xl font-bold px-2 md:px-3 py-0.5 md:py-1 rounded ${store.fmAnswers.p1Points[idx] !== null ? 'bg-black text-yellow-400 border border-yellow-600' : 'bg-black/20 text-blue-300'}">
+                                    ${store.fmAnswers.p1Points[idx] !== null ? store.fmAnswers.p1Points[idx] : "?"}
+                                </span>
                             </div>
+                            ${player === 'p1' ? `<div class="flex flex-wrap gap-2 mt-2 md:mt-3">${surveyBtns} 
+                                <button onclick="assignFmPoints('${player}', ${idx}, 0)" class="px-2 md:px-3 py-1 md:py-2 text-xs md:text-sm font-bold rounded-lg border-2 transition-all ${pointsArray[idx] === 0 ? 'bg-red-600 border-red-400 text-white' : 'bg-blue-950 border-blue-700 text-blue-300'}">Zero (0)</button></div>` : ''}
                         </div>
-                         <div className="mb-10 break-inside-avoid"><h3 className="font-bold text-white bg-gray-900 px-4 py-2 uppercase tracking-wider text-sm rounded-t-lg">B. Room Allocations</h3><div className="border border-t-0 rounded-b-lg p-4 bg-white">{Object.keys(roomGrouped).length === 0 ? <p className="text-gray-400 text-sm italic">No items.</p> : Object.keys(roomGrouped).map(floor => (<div key={floor} className="mb-6 last:mb-0 break-inside-avoid"><h4 className="font-bold text-indigo-700 border-b border-indigo-100 pb-1 mb-2 text-sm">{floor}</h4><div className="grid grid-cols-2 gap-4">{roomGrouped[floor].map(({ room, items }) => (<div key={room.id} className="border rounded p-3 break-inside-avoid"><div className="flex justify-between items-center mb-2 border-b pb-1"><span className="font-bold text-sm">{room.name}</span><span className="text-[10px] text-gray-400 font-mono">{room.id}</span></div><ul className="text-xs space-y-1">{items.map(item => (<li key={item.id} className="flex justify-between"><span>{item.name}</span><span className="text-gray-500">{item.id}</span></li>))}</ul></div>))}</div></div>))}</div></div>
-                         <div className="mb-10 break-inside-avoid"><h3 className="font-bold text-white bg-gray-900 px-4 py-2 uppercase tracking-wider text-sm rounded-t-lg">C. Box Allocations</h3><div className="border border-t-0 rounded-b-lg p-4 bg-white">{boxGrouped.length === 0 ? <p className="text-gray-400 text-sm italic">No items.</p> : <div className="grid grid-cols-3 gap-4">{boxGrouped.map(({ box, items }) => (<div key={box.id} className="border rounded p-3 break-inside-avoid"><div className="flex justify-between items-center mb-2 border-b pb-1 bg-orange-50 -m-3 p-3 rounded-t"><span className="font-bold text-sm text-orange-900">{box.name}</span><span className="text-[10px] text-orange-400 font-mono">{box.id}</span></div><ul className="text-xs space-y-1 mt-3">{items.map(item => (<li key={item.id} className="flex justify-between"><span>{item.name}</span><span className="font-mono text-gray-400">{item.id}</span></li>))}</ul></div>))}</div>}</div></div>
-                        <div className="mt-12 flex justify-between text-xs text-gray-400 pt-8 border-t border-gray-200 break-inside-avoid"><div><p className="mb-6">Prepared By: ___________________________</p><p>Date: ___________________________</p></div><div><p className="mb-6">Verified By: ___________________________</p><p>Date: ___________________________</p></div></div>
-                    </div>
-                </div>
-            );
-        };
-
-        const LoginView = ({ onLogin, users }) => {
-            const [username, setUsername] = useState('');
-            const [password, setPassword] = useState('');
-            const [error, setError] = useState('');
-
-            const handleSubmit = (e) => {
-              e.preventDefault();
-              // Authenticate against the users list passed from App data
-              const foundUser = users.find(u => u.username === username && u.password === password);
-              if (foundUser) {
-                onLogin(foundUser);
-              } else {
-                setError('Invalid credentials');
-              }
-            };
-
-            return (
-              <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-                <div className="max-w-md w-full bg-white rounded-xl shadow-lg p-8">
-                  <div className="text-center mb-8">
-                    <div className="bg-indigo-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
-                      <Package className="w-8 h-8 text-indigo-600" />
-                    </div>
-                    <h1 className="text-2xl font-bold text-gray-900">IMS</h1>
-                    <p className="text-gray-500 mt-2">Inventory Management System</p>
-                  </div>
-                  <form onSubmit={handleSubmit} className="space-y-4">
-                    <Input label="Username" value={username} onChange={e => setUsername(e.target.value)} placeholder="Username"/>
-                    <Input label="Password" type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="Password" />
-                    {error && <p className="text-red-500 text-sm">{error}</p>}
-                    <Button className="w-full" type="submit">Sign In</Button>
-                  </form>
-                  <div className="mt-6 pt-6 border-t border-gray-100 text-xs text-gray-400 text-center">
-                    <p className="font-semibold mb-2">Restricted Access</p>
-                    <p>Please contact your Administrator for an account.</p>
-                  </div>
-                </div>
-              </div>
-            );
-        };
-
-        const DashboardView = ({ data }) => {
-            const totalRooms = data.floors.reduce((acc, f) => acc + f.rooms.length, 0);
-            const occupiedRooms = data.floors.reduce((acc, f) => acc + f.rooms.filter(r => r.status === 'Occupied').length, 0);
-            const availableItems = data.items.filter(i => i.location === 'Unassigned' && i.status !== 'Pullout').length;
-            const defectiveItems = data.items.filter(i => i.condition === 'Defective').length;
-
-            const stats = [
-              { label: 'Total Assets', value: data.items.length, icon: Package, color: 'blue' },
-              { label: 'Available Stock', value: availableItems, icon: CheckCircle, color: 'green' },
-              { label: 'Defective Items', value: defectiveItems, icon: AlertTriangle, color: 'red' },
-              { label: 'Room Occupancy', value: `${occupiedRooms}/${totalRooms}`, icon: Layers, color: 'purple' },
-            ];
-
-            const recentLogs = data.logs.slice(0, 5);
-            const catStats = data.categories.map(c => ({
-                name: c.name,
-                count: data.items.filter(i => i.category === c.name).length
-            }));
-
-            return (
-              <div className="space-y-6">
-                <h2 className="text-2xl font-bold text-gray-800">Dashboard</h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                  {stats.map((stat, i) => (
-                    <Card key={i} className="p-6 flex items-center gap-4">
-                      <div className={`p-3 rounded-full bg-${stat.color}-100 text-${stat.color}-600`}>
-                        <stat.icon className="w-6 h-6" />
-                      </div>
-                      <div>
-                        <p className="text-sm text-gray-500">{stat.label}</p>
-                        <p className="text-2xl font-bold text-gray-900">{stat.value}</p>
-                      </div>
-                    </Card>
-                  ))}
-                </div>
-
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                     <Card className="p-6 col-span-1">
-                         <h3 className="font-bold text-lg mb-4 flex items-center gap-2"><LayoutGrid size={18} /> Room Status</h3>
-                         <div className="space-y-4">
-                             <div className="flex justify-between items-center p-3 bg-gray-50 rounded border border-gray-100"><span className="text-gray-700 font-medium">Total Rooms</span><span className="text-xl font-bold text-gray-900">{totalRooms}</span></div>
-                             <div className="flex justify-between items-center p-3 bg-blue-50 rounded border border-blue-100"><span className="text-blue-900 font-medium">Occupied</span><span className="text-xl font-bold text-blue-700">{occupiedRooms}</span></div>
-                             <div className="flex justify-between items-center p-3 bg-green-50 rounded border border-green-100"><span className="text-green-900 font-medium">Vacant</span><span className="text-xl font-bold text-green-700">{data.floors.reduce((acc, f) => acc + f.rooms.filter(r => r.status === 'Vacant').length, 0)}</span></div>
-                             <div className="flex justify-between items-center p-3 bg-yellow-50 rounded border border-yellow-100"><span className="text-yellow-900 font-medium">Maintenance</span><span className="text-xl font-bold text-yellow-700">{data.floors.reduce((acc, f) => acc + f.rooms.filter(r => r.status === 'Maintenance').length, 0)}</span></div>
-                         </div>
-                     </Card>
-                    <Card className="p-6 col-span-1"><h3 className="font-bold text-lg mb-4 flex items-center gap-2"><Activity size={18} /> Recent Activity</h3><div className="space-y-4">{recentLogs.map(log => (<div key={log.id} className="flex items-start gap-3 pb-3 border-b border-gray-100 last:border-0"><div className="w-2 h-2 mt-2 rounded-full bg-indigo-500 shrink-0" /><div><p className="text-sm font-medium text-gray-900">{log.action}</p><p className="text-xs text-gray-500">{log.details}</p><p className="text-[10px] text-gray-400 mt-1">{new Date(log.timestamp).toLocaleString('en-US', { timeZone: 'Asia/Manila' })}</p></div></div>))}</div></Card>
-                    <Card className="p-6 col-span-1"><h3 className="font-bold text-lg mb-4 flex items-center gap-2"><Layers size={18} /> Asset Distribution</h3><div className="space-y-3">{catStats.map(stat => (<div key={stat.name}><div className="flex justify-between text-xs mb-1"><span>{stat.name}</span><span className="font-medium">{stat.count}</span></div><div className="w-full bg-gray-100 rounded-full h-2"><div className="bg-indigo-600 h-2 rounded-full" style={{ width: `${(stat.count / Math.max(data.items.length, 1)) * 100}%` }}/></div></div>))}</div></Card>
-                </div>
-              </div>
-            );
-        };
-
-        const StorageView = ({ data, setData, dialogs, logAction, hasAdminAccess }) => {
-            const [viewMode, setViewMode] = useState('active'); 
-            const [searchTerm, setSearchTerm] = useState('');
-            const [expandedGroups, setExpandedGroups] = useState([]);
-            const [newItemData, setNewItemData] = useState({ name: '', qty: 1, condition: 'Working' });
-            const [addingToSub, setAddingToSub] = useState(null); 
-
-            const filteredItems = useMemo(() => {
-                return data.items.filter(item => {
-                    if (viewMode === 'active') return item.status !== 'Pullout';
-                    if (viewMode === 'pullout') return item.status === 'Pullout';
-                    return true;
-                });
-            }, [data.items, viewMode]);
-
-            const groupedItems = useMemo(() => {
-                const groups = {};
-                filteredItems.forEach(item => {
-                    const key = item.name + '|' + item.subCategory + '|' + item.category;
-                    if (!groups[key]) {
-                        groups[key] = { name: item.name, sub: item.subCategory, cat: item.category, total: 0, available: 0, items: [] };
-                    }
-                    groups[key].total++;
-                    if (item.location === 'Unassigned') groups[key].available++;
-                    groups[key].items.push(item);
-                });
-                return groups;
-            }, [filteredItems]);
-
-            const getProductOptions = (cat, sub) => {
-                const products = new Set();
-                data.items.forEach(i => { if(i.category === cat && i.subCategory === sub) products.add(i.name); });
-                return Array.from(products).map(p => ({ value: p, label: p }));
-            };
-
-            const handleBatchAdd = (cat, sub) => {
-                if (!newItemData.name) { dialogs.showAlert("Please select a product."); return; }
-                if (newItemData.qty < 1) { dialogs.showAlert("Quantity must be at least 1."); return; }
-                dialogs.showConfirm(`WARNING: Add ${newItemData.qty} units of "${newItemData.name}"?`, () => {
-                    const newItems = [];
-                    let tempItems = [...data.items];
-                    for(let i = 0; i < newItemData.qty; i++) {
-                        const newId = generateId(newItemData.name, tempItems);
-                        const item = { id: newId, name: newItemData.name, category: cat, subCategory: sub, location: 'Unassigned', locationId: '', type: 'none', status: 'Active', condition: newItemData.condition };
-                        newItems.push(item);
-                        tempItems.push(item);
-                    }
-                    setData(prev => ({ ...prev, items: [...prev.items, ...newItems] }));
-                    logAction('Stock Added', `Added ${newItemData.qty}x ${newItemData.name}`);
-                    setAddingToSub(null);
-                    setNewItemData({ name: '', qty: 1, condition: 'Working' });
-                });
-            };
-
-            const handleMoveToPullout = (itemId) => {
-                dialogs.showConfirm("Move this item to Pullout/Disposal?", () => {
-                    setData(prev => ({ ...prev, items: prev.items.map(i => i.id === itemId ? { ...i, status: 'Pullout', location: 'Pullout', locationId: 'pullout', type: 'none' } : i) }));
-                    logAction('Pullout', `Item ${itemId} moved to Pullout`);
-                });
-            };
-
-            const handleRestoreItem = (itemId) => {
-                dialogs.showConfirm("Restore this item to Active Inventory?", () => {
-                    setData(prev => ({ ...prev, items: prev.items.map(i => i.id === itemId ? { ...i, status: 'Active', location: 'Unassigned', locationId: '', type: 'none' } : i) }));
-                    logAction('Restore', `Item ${itemId} restored to Active`);
-                });
-            };
-
-            const handleToggleCondition = (itemId, currentCondition) => {
-                const newCondition = currentCondition === 'Working' ? 'Defective' : 'Working';
-                dialogs.showConfirm(`Mark item ${itemId} as ${newCondition}?`, () => {
-                    setData(prev => ({ ...prev, items: prev.items.map(i => i.id === itemId ? { ...i, condition: newCondition } : i) }));
-                    logAction('Condition Change', `Item ${itemId} marked as ${newCondition}`);
-                });
-            };
-
-            return (
-              <div className="space-y-6">
-                <div className="flex flex-col md:flex-row justify-between items-center gap-4 bg-white p-4 rounded-lg shadow-sm border border-gray-100">
-                  <div className="flex gap-2 w-full md:w-auto">
-                      <button onClick={() => setViewMode('active')} className={`flex-1 md:flex-none px-4 py-2 rounded-lg font-medium text-sm text-center transition-colors ${viewMode === 'active' ? 'bg-indigo-600 text-white' : 'text-gray-600 hover:bg-gray-100'}`}>Active Inventory</button>
-                      <button onClick={() => setViewMode('pullout')} className={`flex-1 md:flex-none px-4 py-2 rounded-lg font-medium text-sm text-center transition-colors ${viewMode === 'pullout' ? 'bg-red-600 text-white' : 'text-gray-600 hover:bg-gray-100'}`}>Pullout / Disposal</button>
-                  </div>
-                  <div className="relative w-full md:w-auto">
-                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
-                      <input type="text" placeholder="Search..." className="pl-9 pr-4 py-2 border rounded-full text-sm w-full md:w-64 focus:ring-2 focus:ring-indigo-500 outline-none" value={searchTerm} onChange={e => setSearchTerm(e.target.value)}/>
-                  </div>
-                </div>
-                <div className="space-y-6">
-                    {data.categories.map(cat => (
-                        <Card key={cat.id} className="overflow-hidden">
-                            <div className="p-4 bg-gray-50 border-b border-gray-200"><h3 className="font-bold text-lg">{cat.name}</h3></div>
-                            <div className="p-4 bg-white space-y-6">
-                                {cat.subs.map(sub => {
-                                    const subGroups = Object.values(groupedItems).filter(g => g.cat === cat.name && g.sub === sub && (searchTerm ? g.name.toLowerCase().includes(searchTerm.toLowerCase()) : true));
-                                    if (subGroups.length === 0 && viewMode === 'pullout') return null;
-                                    const productOptions = getProductOptions(cat.name, sub);
-                                    return (
-                                        <div key={sub} className="border-l-2 border-indigo-100 pl-4 ml-2">
-                                            <div className="flex justify-between items-center mb-3">
-                                                <h4 className="text-sm font-bold text-gray-500 uppercase tracking-wider">{sub}</h4>
-                                                {hasAdminAccess && viewMode === 'active' && <Button size="sm" variant="ghost" onClick={() => setAddingToSub({cat: cat.name, sub})}><Plus size={14} /> Add Stock</Button>}
-                                            </div>
-                                            {addingToSub?.cat === cat.name && addingToSub?.sub === sub && (
-                                                <div className="bg-indigo-50 p-4 rounded-lg mb-4 border border-indigo-100 shadow-inner animate-in fade-in">
-                                                    <h5 className="font-bold text-sm mb-2 text-indigo-800 flex items-center gap-2"><Plus size={14} /> Add Stock to {sub}</h5>
-                                                    {productOptions.length === 0 ? <div className="text-sm text-red-500 mb-2 flex items-center gap-2"><AlertTriangle size={14}/> No products registered. Go to Settings first.</div> : 
-                                                    <div className="flex flex-col md:flex-row gap-3 items-end">
-                                                        <div className="flex-1 w-full"><Select label="Select Product" className="mb-0" value={newItemData.name} onChange={e => setNewItemData({...newItemData, name: e.target.value})} options={[{ value: '', label: '-- Select Product --' }, ...productOptions]}/></div>
-                                                        <div className="w-full md:w-32"><Select label="Condition" className="mb-0" value={newItemData.condition} onChange={e => setNewItemData({...newItemData, condition: e.target.value})} options={[{ value: 'Working', label: 'Working' }, { value: 'Defective', label: 'Defective' }]}/></div>
-                                                        <div className="w-full md:w-24"><Input label="Qty" type="number" min="1" className="mb-0" value={newItemData.qty} onChange={e => setNewItemData({...newItemData, qty: parseInt(e.target.value) || 1})}/></div>
-                                                    </div>}
-                                                    <div className="flex gap-2 mt-4 justify-end"><Button size="sm" variant="secondary" onClick={() => { setAddingToSub(null); setNewItemData({name: '', qty: 1, condition: 'Working'}); }}>Cancel</Button><Button size="sm" onClick={() => handleBatchAdd(cat.name, sub)} disabled={productOptions.length === 0}>Confirm Add Stock</Button></div>
-                                                </div>
-                                            )}
-                                            {subGroups.length > 0 ? (
-                                                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
-                                                    {subGroups.map((group, idx) => {
-                                                        const groupKey = group.name + group.sub;
-                                                        const isExpanded = expandedGroups.includes(groupKey);
-                                                        return (
-                                                            <div key={idx} className={`border rounded-md p-3 transition-shadow ${group.available === 0 ? 'bg-gray-100 opacity-75' : 'bg-white hover:shadow-md'}`}>
-                                                                <div className="flex justify-between items-start gap-2">
-                                                                    <div className="min-w-0 flex-1"><p className="font-medium text-gray-900 truncate" title={group.name}>{group.name}</p><p className="text-xs text-gray-500 truncate">{group.sub}</p></div>
-                                                                    <div className="text-right shrink-0">{viewMode === 'active' ? <>{group.available > 0 ? <Badge color="green">{group.available} Available</Badge> : <Badge color="red">No Stock</Badge>}<p className="text-[10px] text-gray-400 mt-1">Total Assets: {group.total}</p></> : <Badge color="red">Pullout</Badge>}</div>
-                                                                </div>
-                                                                {hasAdminAccess && (<div className="mt-3 pt-2 border-t border-gray-100"><button onClick={() => setExpandedGroups(prev => isExpanded ? prev.filter(k => k !== groupKey) : [...prev, groupKey])} className="text-xs text-indigo-600 flex items-center gap-1 hover:underline w-full justify-center">{isExpanded ? 'Hide Details' : 'View Details'}</button>{isExpanded && (<div className="mt-2 space-y-1 max-h-32 overflow-y-auto">{group.items.map(item => (<div key={item.id} className="flex justify-between items-center text-xs p-1 hover:bg-gray-50 rounded group"><div className="flex flex-col"><span className="font-mono">{item.id}</span>{viewMode === 'active' && <span className={item.location === 'Unassigned' ? 'text-green-600' : 'text-gray-400'}>{item.location}</span>}</div><div className="flex items-center gap-2"><button onClick={() => handleToggleCondition(item.id, item.condition)} className={`px-1.5 py-0.5 rounded border text-[10px] ${item.condition === 'Defective' ? 'bg-red-50 text-red-600 border-red-200' : 'bg-green-50 text-green-600 border-green-200'} hover:opacity-80 transition-opacity`}>{item.condition || 'Working'}</button>{viewMode === 'active' ? <button onClick={() => handleMoveToPullout(item.id)} className="p-1 text-gray-300 hover:text-red-500" title="Move to Pullout"><Archive size={12} /></button> : <button onClick={() => handleRestoreItem(item.id)} className="p-1 text-gray-300 hover:text-green-500" title="Restore to Active"><ArrowUpDown size={12} /></button>}</div></div>))}</div>)}</div>)}
-                                                            </div>
-                                                        );
-                                                    })}
-                                                </div>
-                                            ) : <p className="text-xs text-gray-400 italic">No items found in this category.</p>}
-                                        </div>
-                                    )
-                                })}
+                        <!-- P2 (Only if p2 playing) -->
+                        ${player === 'p2' ? `
+                        <div class="flex-1 pl-2 md:pl-4 border-l-2 md:border-l-4 border-blue-950/50 mt-1">
+                            <div class="h-10 md:h-14 flex items-center justify-between px-2 md:px-4 rounded-lg bg-gradient-to-r from-blue-600 to-blue-500 border-2 border-blue-400 shadow-inner">
+                                <span class="font-bold text-sm md:text-lg uppercase truncate mr-2">${store.fmAnswers.p2[idx] || "-"}</span>
+                                <span class="font-mono text-lg md:text-2xl font-bold px-2 md:px-3 py-0.5 md:py-1 rounded ${store.fmAnswers.p2Points[idx] !== null ? 'bg-black text-yellow-400 border border-yellow-600' : 'bg-black/20 text-blue-300'}">
+                                    ${store.fmAnswers.p2Points[idx] !== null ? store.fmAnswers.p2Points[idx] : "?"}
+                                </span>
                             </div>
-                        </Card>
-                    ))}
-                </div>
-              </div>
-            );
-        };
-
-        const FloorsView = ({ data, setData, dialogs, logAction, hasAdminAccess, setManagingContent }) => {
-            const changeRoomStatus = (roomCode, newStatus) => {
-                if (!hasAdminAccess) return;
-                dialogs.showConfirm(`Change status of room ${roomCode} to ${newStatus}?`, () => {
-                    setData(prev => ({
-                        ...prev,
-                        floors: prev.floors.map(f => ({
-                            ...f,
-                            rooms: f.rooms.map(r => r.id === roomCode ? { ...r, status: newStatus } : r)
-                        }))
-                    }));
-                    logAction('Status Change', `Room ${roomCode} set to ${newStatus}`);
-                });
-            };
-
-            const getStatusColor = (status) => {
-                if (status === 'Vacant') return 'green';
-                if (status === 'Occupied') return 'blue';
-                return 'red';
-            };
-
-            return (
-            <div className="space-y-6">
-                <h2 className="text-2xl font-bold text-gray-800">Floors & Rooms</h2>
-                {data.floors.map(floor => (
-                    <div key={floor.id} className="space-y-3">
-                        <div className="flex items-center gap-2 border-b pb-2 border-gray-200">
-                            <h3 className="text-lg font-bold text-gray-700">{floor.name}</h3>
-                            <Badge color="gray">{floor.code}</Badge>
-                        </div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                            {floor.rooms.map(room => {
-                                const itemsInRoom = data.items.filter(i => i.locationId === room.id);
-                                return (
-                                    <Card key={room.id} className="p-4 hover:shadow-md transition-shadow relative overflow-hidden group">
-                                        <div className="flex justify-between items-start mb-2">
-                                            <div><h4 className="font-bold text-gray-800">{room.name}</h4><p className="text-xs font-mono text-gray-500 mt-0.5">{room.id}</p></div>
-                                            <Badge color={getStatusColor(room.status)}>{room.status}</Badge>
-                                        </div>
-                                        {hasAdminAccess && (
-                                            <div className="flex gap-1 mt-2 mb-4">
-                                                {['Vacant', 'Occupied', 'Maintenance'].map(s => (
-                                                    <button key={s} onClick={() => changeRoomStatus(room.id, s)} className={`h-1.5 flex-1 rounded-full transition-colors ${room.status === s ? `bg-${getStatusColor(s)}-500` : 'bg-gray-100 hover:bg-gray-200'}`} title={`Set to ${s}`}/>
-                                                ))}
-                                            </div>
-                                        )}
-                                        <div className="pt-3 border-t border-gray-100">
-                                            <div className="flex justify-between items-center mb-2"><p className="text-xs font-medium text-gray-500">Content ({itemsInRoom.length})</p></div>
-                                            <div className="flex gap-2">
-                                                <Button size="sm" variant="secondary" className="flex-1 text-xs" onClick={() => setManagingContent({ id: room.id, name: room.name, type: 'room', initialMode: 'view' })}><Settings size={12} /> Manage</Button>
-                                                <Button size="sm" variant="secondary" className="flex-1 text-xs" onClick={() => setManagingContent({ id: room.id, name: room.name, type: 'room', initialMode: 'swap' })} title="Quick Swap"><ArrowRightLeft size={12} /> Swap</Button>
-                                            </div>
-                                        </div>
-                                    </Card>
-                                );
-                            })}
-                        </div>
+                            <div class="flex flex-wrap gap-2 mt-2 md:mt-3">${surveyBtns} <button onclick="assignFmPoints('${player}', ${idx}, 0)" class="px-2 md:px-3 py-1 md:py-2 text-xs md:text-sm font-bold rounded-lg border-2 transition-all ${pointsArray[idx] === 0 ? 'bg-red-600 border-red-400 text-white' : 'bg-blue-950 border-blue-700 text-blue-300'}">Zero (0)</button></div>
+                        </div>` : ''}
                     </div>
-                ))}
-            </div>
-            );
-        };
+                </div>`;
+            }).join('');
 
-        const BoxesView = ({ data, setManagingContent }) => {
-            return (
-            <div className="space-y-6">
-                <h2 className="text-2xl font-bold text-gray-800">Storage Boxes</h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {data.boxes.map(box => {
-                    const itemsInBox = data.items.filter(i => i.locationId === box.id);
-                    return (
-                    <Card key={box.id} className="p-0 overflow-hidden flex flex-col h-full">
-                        <div className="bg-gradient-to-r from-orange-50 to-white p-4 border-b border-orange-100 flex justify-between items-center">
-                        <div className="flex items-center gap-3"><div className="bg-orange-100 p-2 rounded-lg text-orange-600"><Box size={20} /></div><div><h3 className="font-bold text-gray-800">{box.name}</h3><p className="text-xs text-orange-600 font-mono">ID: {box.id}</p></div></div>
-                        <Badge color="orange">{box.type}</Badge>
-                        </div>
-                        <div className="p-4 flex-1 flex flex-col justify-end">
-                        <div className="mb-4 text-center"><p className="text-3xl font-bold text-gray-800">{itemsInBox.length}</p><p className="text-xs text-gray-500 uppercase">Items Stored</p></div>
-                        <Button className="w-full" variant="secondary" onClick={() => setManagingContent({ id: box.id, name: box.name, type: 'box' })}>Manage Box Content</Button>
-                        </div>
-                    </Card>
-                    );
-                })}
-                </div>
-            </div>
-            );
-        };
-
-        const ActivityLogView = ({ data }) => (
-            <div className="space-y-6">
-            <h2 className="text-2xl font-bold text-gray-800">Activity Log</h2>
-            <Card className="overflow-hidden">
-                <div className="overflow-x-auto">
-                <table className="w-full text-left text-sm">
-                    <thead className="bg-gray-50 border-b border-gray-200"><tr><th className="px-6 py-3 font-semibold text-gray-700">Timestamp</th><th className="px-6 py-3 font-semibold text-gray-700">User</th><th className="px-6 py-3 font-semibold text-gray-700">Action</th><th className="px-6 py-3 font-semibold text-gray-700">Details</th></tr></thead>
-                    <tbody className="divide-y divide-gray-200">
-                    {data.logs.map(log => (
-                        <tr key={log.id} className="hover:bg-gray-50">
-                        <td className="px-6 py-3 whitespace-nowrap text-gray-500">{new Date(log.timestamp).toLocaleString('en-US', { timeZone: 'Asia/Manila' })}</td>
-                        <td className="px-6 py-3 font-medium text-gray-900">{log.user}</td>
-                        <td className="px-6 py-3"><span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">{log.action}</span></td>
-                        <td className="px-6 py-3 text-gray-600">{log.details}</td>
-                        </tr>
-                    ))}
-                    </tbody>
-                </table>
-                </div>
-            </Card>
-            </div>
-        );
-
-        const SettingsView = ({ data, setData, dialogs, logAction, hasAdminAccess }) => {
-            const [settingsTab, setSettingsTab] = useState('storage');
-            const [editingCat, setEditingCat] = useState(null);
-            const [tempEditValue, setTempEditValue] = useState('');
-            const [editingSub, setEditingSub] = useState(null);
-            const [tempSubValue, setTempSubValue] = useState('');
-            const [creatingProduct, setCreatingProduct] = useState(null); 
-            const [newProductName, setNewProductName] = useState('');
-            const [editingUser, setEditingUser] = useState(null);
-            const [showUserModal, setShowUserModal] = useState(false);
-
-            if (!hasAdminAccess) return <div className="text-center p-10"><Shield size={40} className="mx-auto mb-2 text-gray-300"/><p>Access Denied</p></div>;
-
-            const handleSaveUser = (userData) => {
-                if(editingUser) {
-                    setData(prev => ({...prev, users: prev.users.map(u => u.id === editingUser.id ? { ...userData, id: u.id } : u)}));
-                    logAction('User Management', `Updated user: ${userData.username}`);
-                } else {
-                    const newUser = { ...userData, id: generateNextId(data.users, 'u') };
-                    setData(prev => ({...prev, users: [...prev.users, newUser]}));
-                    logAction('User Management', `Created user: ${userData.username}`);
-                }
-                setShowUserModal(false);
-                setEditingUser(null);
-            };
-
-            const handleDeleteUser = (userId) => {
-                dialogs.showConfirm("Delete this user account?", () => {
-                    setData(prev => ({...prev, users: prev.users.filter(u => u.id !== userId)}));
-                    logAction('User Management', `Deleted user ${userId}`);
-                });
-            };
-
-            const handleAddCategory = () => {
-                dialogs.showPrompt("New Category Name:", "", (name) => {
-                    if(name) {
-                        const newCat = { id: generateNextId(data.categories, 'c'), name, subs: [] };
-                        setData(prev => ({ ...prev, categories: [...prev.categories, newCat] }));
-                        logAction('System', `Created category: ${name}`);
-                    }
-                });
-            };
-
-            const handleAddSubCategory = (catId) => {
-                dialogs.showPrompt("New Sub-Category Name:", "", (name) => {
-                    if(name) {
-                        setData(prev => ({...prev, categories: prev.categories.map(c => c.id === catId ? { ...c, subs: [...c.subs, name] } : c)}));
-                        logAction('System', `Created sub-category: ${name}`);
-                    }
-                });
-            };
-
-            const handleRenameCat = (catId, newName) => {
-                if (!newName) return;
-                setData(prev => ({
-                    ...prev,
-                    categories: prev.categories.map(c => c.id === catId ? { ...c, name: newName } : c),
-                    items: prev.items.map(i => {
-                        const oldCat = data.categories.find(c => c.id === catId);
-                        if (i.category === oldCat?.name) return { ...i, category: newName };
-                        return i;
-                    })
-                }));
-                setEditingCat(null);
-            };
-
-            const handleDeleteCat = (catId, catName) => {
-                dialogs.showConfirm(`CRITICAL: Delete Category "${catName}"? This will delete ALL sub-categories and items within it.`, () => {
-                    setData(prev => ({...prev, categories: prev.categories.filter(c => c.id !== catId), items: prev.items.filter(i => i.category !== catName)}));
-                });
-            };
-
-            const handleCreateProduct = (cat, sub) => {
-                if(!newProductName) return;
-                dialogs.showConfirm(`Create new product card "${newProductName}" under ${sub}?`, () => {
-                    const newId = generateId(newProductName, data.items);
-                    const newItem = { id: newId, name: newProductName, category: cat, subCategory: sub, location: 'Unassigned', locationId: '', type: 'none', status: 'Active', condition: 'Working' };
-                    setData(prev => ({...prev, items: [...prev.items, newItem]}));
-                    logAction('System', `Created new product type: ${newProductName}`);
-                    setNewProductName('');
-                    setCreatingProduct(null);
-                });
-            };
-
-            const handleRenameSub = (catName, oldSub, newSub) => {
-                if (!newSub) return;
-                setData(prev => ({
-                    ...prev,
-                    categories: prev.categories.map(c => c.name === catName ? { ...c, subs: c.subs.map(s => s === oldSub ? newSub : s) } : c),
-                    items: prev.items.map(i => i.subCategory === oldSub && i.category === catName ? { ...i, subCategory: newSub } : i)
-                }));
-                setEditingSub(null);
-            };
-
-            const handleDeleteSub = (catName, sub) => {
-                dialogs.showConfirm(`CRITICAL: Delete sub-category "${sub}"? This will permanently delete ALL associated items!`, () => {
-                    setData(prev => ({
-                        ...prev,
-                        categories: prev.categories.map(c => c.name === catName ? { ...c, subs: c.subs.filter(s => s !== sub) } : c),
-                        items: prev.items.filter(i => !(i.category === catName && i.subCategory === sub))
-                    }));
-                });
-            };
-
-            const uniqueProducts = useMemo(() => {
-                const products = [];
-                data.items.forEach(i => { if (!products.some(p => p.name === i.name && p.cat === i.category && p.sub === i.subCategory)) products.push({ name: i.name, cat: i.category, sub: i.subCategory }); });
-                return products;
-            }, [data.items]);
-
-            const handleRenameProduct = (oldName, newName, cat, sub) => {
-                if(!newName) return;
-                dialogs.showConfirm(`Rename product "${oldName}" to "${newName}" for all items?`, () => {
-                    setData(prev => ({...prev, items: prev.items.map(i => (i.name === oldName && i.category === cat && i.subCategory === sub) ? { ...i, name: newName } : i)}));
-                });
-            };
-
-            const handleDeleteProduct = (name, cat, sub) => {
-                dialogs.showConfirm(`CRITICAL: Delete ALL instances of "${name}"? This cannot be undone.`, () => {
-                    setData(prev => ({...prev, items: prev.items.filter(i => !(i.name === name && i.category === cat && i.subCategory === sub))}));
-                });
-            };
-
-            const handleRenameFloor = (floorId, newName) => {
-                if(!newName) return;
-                setData(prev => ({...prev, floors: prev.floors.map(f => f.id === floorId ? { ...f, name: newName } : f)}));
-            };
-
-            const handleDeleteFloor = (floorId) => {
-                dialogs.showConfirm('Delete this Floor? All rooms and assignments will be removed.', () => {
-                    setData(prev => ({...prev, floors: prev.floors.filter(f => f.id !== floorId), items: prev.items.map(i => { return i; }) }));
-                });
-            }
-
-            const handleRenameRoom = (floorId, roomId, newName) => {
-                if(!newName) return;
-                setData(prev => ({...prev, floors: prev.floors.map(f => f.id === floorId ? { ...f, rooms: f.rooms.map(r => r.id === roomId ? { ...r, name: newName } : r) } : f)}));
-            };
-
-            const handleDeleteRoom = (floorId, roomId) => {
-                dialogs.showConfirm('Delete this room?', () => {
-                    setData(prev => ({
-                        ...prev,
-                        floors: prev.floors.map(f => f.id === floorId ? { ...f, rooms: f.rooms.filter(r => r.id !== roomId) } : f),
-                        items: prev.items.map(i => i.locationId === roomId ? { ...i, location: 'Unassigned', locationId: '', type: 'none' } : i)
-                    }));
-                });
-            };
-
-            const handleAddBox = () => {
-                dialogs.showPrompt("New Box Name (e.g. Box-C01):", "", (name) => {
-                    if(name) {
-                        dialogs.showPrompt("Box Type (e.g. Plastic Bin):", "Generic", (type) => {
-                            const newId = generateNextId(data.boxes, 'b');
-                            const newBox = { id: newId, name, type: type || "Generic" };
-                            setData(prev => ({ ...prev, boxes: [...prev.boxes, newBox] }));
-                        });
-                    }
-                });
-            };
-
-            const handleRenameBox = (boxId, newName) => {
-                if(!newName) return;
-                setData(prev => ({...prev, boxes: prev.boxes.map(b => b.id === boxId ? { ...b, name: newName } : b)}));
-            };
-
-            const handleDeleteBox = (boxId) => {
-                dialogs.showConfirm("Delete this box? Items inside will be unassigned.", () => {
-                    setData(prev => ({
-                        ...prev,
-                        boxes: prev.boxes.filter(b => b.id !== boxId),
-                        items: prev.items.map(i => i.locationId === boxId ? { ...i, location: 'Unassigned', locationId: '', type: 'none' } : i)
-                    }));
-                });
-            };
-
-            const handleBackup = () => {
-                const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(data));
-                const downloadAnchorNode = document.createElement('a');
-                downloadAnchorNode.setAttribute("href", dataStr);
-                downloadAnchorNode.setAttribute("download", "IMS_Backup_" + new Date().toISOString().split('T')[0] + ".json");
-                document.body.appendChild(downloadAnchorNode);
-                downloadAnchorNode.click();
-                downloadAnchorNode.remove();
-                logAction('System', 'Data backup created');
-            };
-
-            const handleRestore = (event) => {
-                const file = event.target.files[0];
-                if (!file) return;
-                
-                const reader = new FileReader();
-                reader.onload = (e) => {
-                    try {
-                        const restoredData = JSON.parse(e.target.result);
-                        if (!restoredData.items || !restoredData.users || !restoredData.floors) {
-                            dialogs.showAlert("Invalid backup file format.");
-                            return;
+            // Big Board Visual
+            let bigBoardHtml = store.fastMoneyData.map((_, idx) => `
+                <div class="flex gap-2 md:gap-3">
+                    <div class="flex-1 bg-gradient-to-b from-blue-800 to-blue-900 border md:border-2 border-blue-500 h-10 md:h-16 flex items-center justify-between px-2 md:px-3 shadow-inner">
+                        ${store.fmAnswers.p1Points[idx] !== null ? 
+                            `<span class="text-white font-bold text-xs md:text-lg uppercase truncate">${store.fmAnswers.p1[idx]}</span>
+                             <span class="text-white font-black font-mono text-lg md:text-2xl border-l md:border-l-2 border-blue-600 pl-2 md:pl-3 w-8 md:w-14 text-center">${store.fmAnswers.p1Points[idx]}</span>`
+                            : '<div class="w-full h-full bg-blue-950/50"></div>'
                         }
-                        dialogs.showConfirm("WARNING: Restoring data will overwrite ALL current inventory and settings. Continue?", () => {
-                            setData(restoredData);
-                            logAction('System', 'Data restored from backup');
-                            dialogs.showAlert("System restored successfully.");
-                        });
-                    } catch (error) {
-                        dialogs.showAlert("Error parsing backup file.");
-                    }
-                };
-                reader.readAsText(file);
-                // Reset input
-                event.target.value = ''; 
-            };
+                    </div>
+                    ${player === 'p2' ? `
+                    <div class="flex-1 bg-gradient-to-b from-blue-800 to-blue-900 border md:border-2 border-blue-500 h-10 md:h-16 flex items-center justify-between px-2 md:px-3 shadow-inner">
+                        ${store.fmAnswers.p2Points[idx] !== null ? 
+                            `<span class="text-white font-bold text-xs md:text-lg uppercase truncate">${store.fmAnswers.p2[idx]}</span>
+                             <span class="text-white font-black font-mono text-lg md:text-2xl border-l md:border-l-2 border-blue-600 pl-2 md:pl-3 w-8 md:w-14 text-center">${store.fmAnswers.p2Points[idx]}</span>`
+                            : '<div class="w-full h-full bg-blue-950/50"></div>'
+                        }
+                    </div>` : ''}
+                </div>
+            `).join('');
 
-            const handleReset = () => {
-                dialogs.showPrompt("To confirm FACTORY RESET, type 'RESET':", "", (val) => {
-                    if (val === 'RESET') {
-                        setData(INITIAL_DATA);
-                        logAction('System', 'System factory reset');
-                        dialogs.showAlert("System reset to initial state.");
-                    } else if (val) {
-                        dialogs.showAlert("Reset cancelled. Incorrect confirmation.");
-                    }
-                });
-            };
+            app.innerHTML = `
+            <div class="max-w-7xl mx-auto p-2 md:p-8 flex flex-col h-full w-full">
+                <div class="flex flex-col md:flex-row justify-between items-center mb-4 md:mb-8 bg-blue-900/50 p-4 md:p-6 rounded-2xl border border-blue-700">
+                    <div class="text-center md:text-left mb-2 md:mb-0">
+                        <h2 class="text-2xl md:text-4xl font-black text-yellow-400 uppercase tracking-widest drop-shadow-md">FAST MONEY REVEAL</h2>
+                        <p class="text-blue-200 text-sm md:text-lg font-bold">SCORING PHASE</p>
+                    </div>
+                    <div class="flex items-center gap-2 md:gap-4 bg-black/40 px-4 md:px-6 py-2 md:py-3 rounded-xl border border-blue-600 mt-2 md:mt-0">
+                        <span class="text-blue-300 font-bold text-sm md:text-xl uppercase tracking-widest">TOTAL SCORE</span>
+                        <span class="text-4xl md:text-6xl font-mono font-black text-yellow-400 drop-shadow-lg">${store.fmAnswers.total}</span>
+                    </div>
+                </div>
 
-            return (
-              <div className="space-y-6">
-                <div className="border-b border-gray-200"><nav className="-mb-px flex space-x-8 overflow-x-auto">{['Storage', 'Floor', 'Boxes', 'Accounts', 'Report', 'Backup'].map((tab) => (<button key={tab} onClick={() => setSettingsTab(tab.toLowerCase())} className={`py-4 px-1 border-b-2 font-medium text-sm whitespace-nowrap ${settingsTab === tab.toLowerCase() ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}>{tab} Settings</button>))}</nav></div>
-                <div className="mt-6">
-                  {settingsTab === 'storage' && (<div className="space-y-6"><Button onClick={handleAddCategory} className="w-full py-4 border-dashed border-2 bg-gray-50 hover:bg-white text-gray-500 hover:text-indigo-600"><Plus className="mr-2"/> Add New Category</Button>{data.categories.map((cat, idx) => (<Card key={cat.id} className="p-0 overflow-hidden"><div className="bg-gray-50 p-4 border-b border-gray-200 flex justify-between items-center">{editingCat === cat.id ? (<div className="flex gap-2"><input value={tempEditValue} onChange={e => setTempEditValue(e.target.value)} className="border rounded px-2 py-1" autoFocus /><Button size="sm" onClick={() => handleRenameCat(cat.id, tempEditValue)}><Save size={14} className="mr-1"/> Save</Button><Button size="sm" variant="secondary" onClick={() => setEditingCat(null)}>Cancel</Button></div>) : (<div className="flex items-center gap-3"><span className="font-bold text-lg">{cat.name}</span><div className="flex gap-1"><button onClick={() => { setEditingCat(cat.id); setTempEditValue(cat.name); }} className="text-gray-400 hover:text-indigo-600 p-1"><Edit size={16}/></button><button onClick={() => handleDeleteCat(cat.id, cat.name)} className="text-gray-400 hover:text-red-600 p-1"><Trash2 size={16}/></button></div></div>)}<div className="flex gap-2 text-xs"><span className="bg-white px-2 py-1 rounded border">{cat.subs.length} Sub-cats</span></div></div><div className="p-4 space-y-4">{cat.subs.map((sub, sIdx) => (<div key={`${sub}-${sIdx}`} className="border p-4 rounded-lg bg-white shadow-sm"><div className="flex justify-between items-center mb-4 border-b pb-3">{editingSub?.cat === cat.name && editingSub?.sub === sub ? (<div className="flex gap-2"><input value={tempSubValue} onChange={e => setTempSubValue(e.target.value)} className="border rounded px-2 py-1 text-xs" autoFocus /><Button size="sm" onClick={() => handleRenameSub(cat.name, sub, tempSubValue)}><Save size={14} className="mr-1"/> Save</Button><Button size="sm" variant="secondary" onClick={() => setEditingSub(null)}>Cancel</Button></div>) : (<div className="flex items-center gap-2"><span className="font-bold text-gray-700 text-lg">{sub}</span><button onClick={() => { setEditingSub({cat: cat.name, sub}); setTempSubValue(sub); }} className="text-gray-400 hover:text-indigo-600"><Edit size={14}/></button><button onClick={() => handleDeleteSub(cat.name, sub)} className="text-gray-400 hover:text-red-600"><Trash2 size={14}/></button></div>)}<Button size="sm" variant="secondary" onClick={() => setCreatingProduct({cat: cat.name, sub})}><Plus size={14} /> Create Product Card</Button></div>{creatingProduct?.cat === cat.name && creatingProduct?.sub === sub && (<div className="bg-blue-50 p-3 rounded mb-4 flex gap-2 items-center animate-in fade-in"><span className="text-xs font-bold text-blue-700 whitespace-nowrap">New Item Name:</span><input className="flex-1 border border-blue-200 rounded px-2 py-1 text-sm focus:outline-none focus:border-blue-500" placeholder="e.g. LED Panel 500W" autoFocus value={newProductName} onChange={e => setNewProductName(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleCreateProduct(cat.name, sub)} /><Button size="sm" onClick={() => handleCreateProduct(cat.name, sub)}>Create</Button><Button size="sm" variant="ghost" onClick={() => {setCreatingProduct(null); setNewProductName('');}}><X size={14}/></Button></div>)}<div className="space-y-2"><p className="text-[10px] font-bold text-gray-400 uppercase tracking-wide">Registered Items:</p><div className="grid grid-cols-1 md:grid-cols-2 gap-2">{uniqueProducts.filter(p => p.cat === cat.name && p.sub === sub).map((prod, pIdx) => (<div key={pIdx} className="flex justify-between items-center text-sm p-3 bg-gray-50 rounded border border-gray-100 hover:border-gray-300 transition-colors"><span className="font-medium text-gray-700">{prod.name}</span><div className="flex items-center gap-2"><span className="text-xs text-gray-500 bg-white px-2 py-0.5 rounded border">Qty: {data.items.filter(i => i.name === prod.name).length}</span><button title="Rename Product" onClick={() => { dialogs.showPrompt("Rename Product Type:", prod.name, (newName) => { handleRenameProduct(prod.name, newName, cat.name, sub); }); }} className="text-gray-400 hover:text-blue-600 p-1 hover:bg-blue-50 rounded"><Edit size={14}/></button><button title="Delete Product" onClick={() => handleDeleteProduct(prod.name, cat.name, sub)} className="text-gray-400 hover:text-red-600 p-1 hover:bg-red-50 rounded"><Trash2 size={14}/></button></div></div>))}</div>{uniqueProducts.filter(p => p.cat === cat.name && p.sub === sub).length === 0 && (<p className="text-xs text-gray-400 italic p-2 border border-dashed rounded text-center">No products registered yet.</p>)}</div></div>))}<Button size="sm" variant="ghost" className="w-full border border-dashed" onClick={() => handleAddSubCategory(cat.id)}><Plus size={14} className="mr-1"/> Add Sub-Category</Button></div></Card>))}</div>)}
-
-                  {settingsTab === 'floor' && (<div className="space-y-6">{data.floors.map((floor) => (<Card key={floor.id} className="p-0"><div className="bg-gray-50 p-4 border-b border-gray-200 flex justify-between items-center"><div className="flex items-center gap-2"><span className="font-bold">{floor.name}</span><button className="text-gray-400 hover:text-indigo-600" onClick={() => { dialogs.showPrompt("Rename Floor:", floor.name, (newName) => { handleRenameFloor(floor.id, newName); }); }}><Edit size={14}/></button><Badge>{floor.code}</Badge></div><div className="flex gap-2"><Button size="sm" variant="secondary" onClick={() => { dialogs.showPrompt("New Room Name:", "", (name) => { if(name) { const nextRoomId = generateRoomId(floor.code, data.floors.flatMap(f => f.rooms)); const newRoom = { id: nextRoomId, name, status: 'Vacant' }; setData(prev => ({...prev, floors: prev.floors.map(f => f.id === floor.id ? { ...f, rooms: [...f.rooms, newRoom] } : f)})); } }); }}>Add Room</Button><button className="text-red-400 p-2 hover:bg-red-50 rounded" onClick={() => handleDeleteFloor(floor.id)}><Trash2 size={16}/></button></div></div><div className="p-4 space-y-2">{floor.rooms.map((room) => (<div key={room.id} className="flex items-center justify-between p-3 border rounded hover:bg-gray-50"><div className="flex items-center gap-3"><span className="font-mono text-xs bg-gray-200 px-1 rounded text-gray-600">{room.id}</span><span className="font-medium">{room.name}</span><button className="text-gray-300 hover:text-indigo-600" onClick={() => { dialogs.showPrompt("Rename Room:", room.name, (newName) => { handleRenameRoom(floor.id, room.id, newName); }); }}><Edit size={12}/></button></div><div className="flex items-center gap-2"><button className="text-red-400 hover:text-red-600 ml-2" onClick={() => handleDeleteRoom(floor.id, room.id)}><Trash2 size={14}/></button></div></div>))}</div></Card>))}<Button variant="secondary" className="w-full" onClick={() => { dialogs.showPrompt("New Floor Name (e.g. 3rd Floor):", "", (name) => { if(name) { dialogs.showPrompt("Floor Code (e.g. F3):", "", (code) => { if(code) { const newId = generateNextId(data.floors, 'f'); const newFloor = { id: newId, name, code, rooms: [] }; setData(prev => ({ ...prev, floors: [...prev.floors, newFloor] })); } }); } }); }}>+ Add New Floor</Button></div>)}
-                  
-                  {settingsTab === 'boxes' && (<div className="space-y-6"><div className="flex justify-between items-center"><h3 className="font-bold text-lg">Manage Storage Boxes</h3><Button onClick={handleAddBox}><Plus size={16}/> Add New Box</Button></div><div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">{data.boxes.map(box => (<div key={box.id} className="bg-white p-4 border rounded shadow-sm flex flex-col justify-between"><div><div className="flex justify-between items-start mb-2"><Box className="text-orange-500" /><div className="flex gap-2"><button onClick={() => { dialogs.showPrompt("Rename Box:", box.name, (newName) => { handleRenameBox(box.id, newName); }); }} className="text-gray-400 hover:text-indigo-600"><Edit size={16}/></button><button onClick={() => handleDeleteBox(box.id)} className="text-gray-400 hover:text-red-600"><Trash2 size={16}/></button></div></div><h4 className="font-bold text-gray-800">{box.name}</h4><p className="text-xs text-orange-600 font-mono">ID: {box.id}</p></div><div className="mt-4 pt-2 border-t text-xs text-gray-400">ID: {box.id}</div></div>))}</div></div>)}
-
-                  {settingsTab === 'accounts' && (<div className="space-y-8"><div className="flex justify-between items-center"><h3 className="font-bold text-lg">User Accounts</h3><Button onClick={() => { setEditingUser(null); setShowUserModal(true); }}><Plus size={16}/> Add New User</Button></div>{[ROLES.SUPERVISOR, ROLES.LEAD, ROLES.TRAINER, ROLES.OPERATOR].map((role) => { const usersInRole = data.users.filter(u => u.role === role); if (usersInRole.length === 0) return null; return (<div key={role} className="space-y-3 animate-in fade-in"><h4 className="font-bold text-gray-500 text-xs uppercase tracking-wider border-b border-gray-200 pb-1 mb-2">{role}s</h4><div className="grid grid-cols-1 md:grid-cols-2 gap-4">{usersInRole.map(u => (<UserCard key={u.id} user={u} onEdit={() => { setEditingUser(u); setShowUserModal(true); }} onDelete={handleDeleteUser}/>))}</div></div>); })}{showUserModal && (<UserModal userToEdit={editingUser} onSave={handleSaveUser} onClose={() => setShowUserModal(false)} dialogs={dialogs}/>)}</div>)}
-
-                  {settingsTab === 'report' && (<Card><ReportGenerator data={data} /></Card>)}
-
-                  {settingsTab === 'backup' && (
-                        <div className="space-y-6">
-                            <Card className="p-6">
-                                <h3 className="text-lg font-bold mb-4 flex items-center gap-2"><Save size={20} /> Backup & Restore</h3>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                    <div className="p-4 border rounded bg-gray-50">
-                                        <h4 className="font-bold text-gray-700 mb-2">Export Data</h4>
-                                        <p className="text-xs text-gray-500 mb-4">Download a local copy of the entire database.</p>
-                                        <Button onClick={handleBackup} className="w-full"><Download size={16} /> Download Backup</Button>
-                                    </div>
-                                    <div className="p-4 border rounded bg-gray-50">
-                                        <h4 className="font-bold text-gray-700 mb-2">Import Data</h4>
-                                        <p className="text-xs text-gray-500 mb-4">Restore from a previously saved JSON file.</p>
-                                        <div className="relative">
-                                            <input type="file" accept=".json" onChange={handleRestore} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20" />
-                                            <Button variant="secondary" className="w-full"><ArrowUpDown size={16} /> Select Backup File</Button>
-                                        </div>
-                                    </div>
-                                </div>
-                            </Card>
-
-                            <Card className="p-6 border-red-200 bg-red-50">
-                                <h3 className="text-lg font-bold mb-2 text-red-800 flex items-center gap-2"><AlertTriangle size={20} /> Danger Zone</h3>
-                                <div className="flex flex-col md:flex-row justify-between items-center gap-4">
-                                    <div>
-                                        <h4 className="font-bold text-red-900">Factory Reset</h4>
-                                        <p className="text-xs text-red-700">Permanently delete all data and reset to default. This cannot be undone.</p>
-                                    </div>
-                                    <Button onClick={handleReset} variant="danger" className="whitespace-nowrap"><Trash2 size={16} /> Reset System</Button>
-                                </div>
-                            </Card>
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-8 h-full">
+                    <div class="space-y-3 overflow-y-auto pr-1 md:pr-2 max-h-[40vh] md:max-h-[60vh] lg:max-h-full">
+                        ${questionsHtml}
+                    </div>
+                    <div class="bg-black border-4 md:border-[6px] border-yellow-500 rounded-xl md:rounded-2xl p-4 md:p-6 flex flex-col justify-center gap-2 md:gap-3 shadow-2xl lg:sticky lg:top-8 h-fit">
+                        <div class="text-center mb-2 md:mb-4">
+                            <h3 class="text-yellow-500 font-black text-lg md:text-2xl uppercase tracking-[0.2em] border-b-2 border-yellow-500/30 pb-2">Survey Says</h3>
                         </div>
-                    )}
+                        ${bigBoardHtml}
+                    </div>
                 </div>
-              </div>
-            );
-        };
 
-        // --- Main App Component ---
-
-        const InventoryApp = () => {
-          const [user, setUser] = useState(() => {
-              const savedUser = localStorage.getItem('ims_user_v1');
-              return savedUser ? JSON.parse(savedUser) : null;
-          });
-          
-          const [activeTab, setActiveTab] = useState('dashboard');
-          const [showProfileModal, setShowProfileModal] = useState(false);
-          const [mobileMenuOpen, setMobileMenuOpen] = useState(false); // Mobile Menu State
-          
-          const [dialogState, setDialogState] = useState({ isOpen: false, type: 'alert', message: '', defaultValue: '', onConfirm: () => {} });
-
-          useEffect(() => {
-              if (user) localStorage.setItem('ims_user_v1', JSON.stringify(user));
-              else localStorage.removeItem('ims_user_v1');
-          }, [user]);
-
-          // ... (existing dialogs, managingContent, data, useEffects, logAction, hasAdminAccess, handleProfileUpdate, handleLogin code) ...
-          const dialogs = useMemo(() => ({
-              showAlert: (msg) => setDialogState({ isOpen: true, type: 'alert', message: msg, onConfirm: () => setDialogState(prev => ({...prev, isOpen: false})) }),
-              showConfirm: (msg, onConfirm) => setDialogState({ isOpen: true, type: 'confirm', message: msg, onConfirm: () => { setDialogState(prev => ({...prev, isOpen: false})); setTimeout(onConfirm, 100); } }),
-              showPrompt: (msg, defaultValue, onConfirm) => setDialogState({ isOpen: true, type: 'prompt', message: msg, defaultValue, onConfirm: (val) => { setDialogState(prev => ({...prev, isOpen: false})); setTimeout(() => onConfirm(val), 100); } })
-          }), []);
-
-          const [managingContent, setManagingContent] = useState(null); 
-
-          const [data, setData] = useState(() => {
-            const saved = localStorage.getItem('inventoryDataV27'); 
-            if (saved) return JSON.parse(saved);
-            return INITIAL_DATA;
-          });
-
-          useEffect(() => { localStorage.setItem('inventoryDataV27', JSON.stringify(data)); }, [data]);
-
-          const logAction = (action, details) => {
-            const newLog = { id: Date.now(), timestamp: new Date().toISOString(), user: user?.name || 'Unknown', action, details };
-            setData(prev => ({ ...prev, logs: [newLog, ...prev.logs] }));
-          };
-
-          const hasAdminAccess = useMemo(() => user && ADMIN_ROLES.includes(user.role), [user]);
-
-          const handleProfileUpdate = (updatedUser) => {
-            setUser(updatedUser);
-            setData(prev => ({ ...prev, users: prev.users.map(u => u.id === updatedUser.id ? updatedUser : u) }));
-            logAction('Profile Update', `User ${updatedUser.username} updated their profile`);
-          };
-
-          const handleLogin = (loggedInUser) => {
-             setUser(loggedInUser);
-             const newLog = { id: Date.now(), timestamp: new Date().toISOString(), user: loggedInUser.name, action: 'Login', details: `User ${loggedInUser.username} logged in` };
-             setData(prev => ({ ...prev, logs: [newLog, ...prev.logs] }));
-          };
-
-          if (!user) return <LoginView onLogin={handleLogin} users={data.users} />;
-
-          const NavItem = ({ id, label, icon: Icon }) => (
-            <button onClick={() => { setActiveTab(id); setMobileMenuOpen(false); }} className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-medium transition-colors ${activeTab === id ? 'bg-indigo-50 text-indigo-700 border-r-4 border-indigo-600' : 'text-gray-600 hover:bg-gray-50'}`}>
-              <Icon className="w-5 h-5" />{label}
-            </button>
-          );
-
-          return (
-            <div className="min-h-screen bg-gray-100 font-sans flex text-gray-800 flex-col lg:flex-row">
-              
-              {/* Mobile Header */}
-              <div className="lg:hidden flex items-center justify-between bg-white border-b border-gray-200 p-4 sticky top-0 z-20 print-hidden shadow-sm">
-                 <div className="flex items-center gap-3">
-                     <img src="./icon-512.png" className="w-8 h-8 object-contain" alt="IMS Logo" />
-                     <span className="font-bold text-gray-900 text-lg">IMS</span>
-                 </div>
-                 <button onClick={() => setMobileMenuOpen(!mobileMenuOpen)} className="p-2 text-gray-600 rounded-md hover:bg-gray-100 active:bg-gray-200">
-                     <Menu size={24} />
-                 </button>
-              </div>
-
-              {/* Mobile Menu Overlay */}
-              {mobileMenuOpen && (
-                  <div 
-                      className="fixed inset-0 bg-black/50 z-30 lg:hidden animate-in fade-in duration-200"
-                      onClick={() => setMobileMenuOpen(false)}
-                  />
-              )}
-
-              {/* Sidebar */}
-              <aside className={`flex flex-col w-64 bg-white border-r border-gray-200 fixed inset-y-0 left-0 z-40 print-hidden transition-transform duration-300 ease-in-out lg:translate-x-0 ${mobileMenuOpen ? 'translate-x-0 shadow-xl' : '-translate-x-full'}`}>
-                <div className="p-6 flex items-center gap-3 border-b border-gray-100">
-                    <img src="./icon-512.png" className="w-10 h-10 object-contain" alt="IMS Logo" />
-                    <div><h1 className="font-bold text-gray-900 leading-tight">IMS</h1><p className="text-[10px] text-gray-400 font-medium">V10.7 ENTERPRISE</p></div>
+                <div class="mt-4 md:mt-8 flex justify-end">
+                    ${player === 'p1' ? `
+                    <button onclick="store.phase='fast-money-p2'; store.fmTimer=25; renderApp()" class="w-full md:w-auto bg-gradient-to-r from-yellow-500 to-yellow-400 hover:from-yellow-400 hover:to-yellow-300 text-blue-900 font-black px-8 md:px-10 py-3 md:py-4 rounded-xl text-lg md:text-2xl flex items-center justify-center gap-3 shadow-xl transform transition hover:scale-105 active:scale-95">
+                        NEXT PLAYER (P2) <i data-lucide="users" class="w-6 h-6 md:w-8 md:h-8"></i>
+                    </button>` : `
+                    <button onclick="store.phase='fast-money-result'; renderApp()" class="w-full md:w-auto bg-gradient-to-r from-green-500 to-green-400 hover:from-green-400 hover:to-green-300 text-white font-black px-8 md:px-10 py-3 md:py-4 rounded-xl text-lg md:text-2xl flex items-center justify-center gap-3 shadow-xl transform transition hover:scale-105 active:scale-95">
+                        FINAL RESULTS <i data-lucide="trophy" class="w-6 h-6 md:w-8 md:h-8"></i>
+                    </button>`}
                 </div>
-                <nav className="flex-1 py-6 space-y-1 overflow-y-auto">
-                  <NavItem id="dashboard" label="Dashboard" icon={LayoutDashboard} />
-                  <NavItem id="storage" label="Inventory" icon={Package} />
-                  <NavItem id="floors" label="Floors & Rooms" icon={Layers} />
-                  <NavItem id="boxes" label="Storage Boxes" icon={Box} />
-                  <NavItem id="activity" label="Activity Log" icon={History} />
-                  <NavItem id="settings" label="Settings" icon={Settings} />
-                </nav>
-                <div className="p-4 border-t border-gray-100"><div className="flex items-center gap-3 px-4 py-3 bg-gray-50 rounded-lg mb-2 cursor-pointer hover:bg-gray-100" onClick={() => { setShowProfileModal(true); setMobileMenuOpen(false); }}><div className="bg-indigo-100 p-2 rounded-full"><User className="w-4 h-4 text-indigo-600" /></div><div className="overflow-hidden"><p className="text-sm font-bold text-gray-900 truncate">{user.name}</p><p className="text-xs text-gray-500 truncate" title={user.role}>{user.role}</p></div><Settings size={14} className="text-gray-400" /></div><button onClick={() => setUser(null)} className="w-full flex items-center justify-center gap-2 text-sm text-red-600 hover:bg-red-50 p-2 rounded-lg"><LogOut className="w-4 h-4" /> Sign Out</button></div>
-              </aside>
-
-              {/* Main Content */}
-              <main className="flex-1 lg:ml-64 p-4 lg:p-8 print:m-0 print:p-0 w-full lg:w-auto">
-                <div className="max-w-7xl mx-auto print:hidden">
-                  {activeTab === 'dashboard' && <DashboardView data={data} setActiveTab={setActiveTab} />}
-                  {activeTab === 'storage' && <StorageView data={data} setData={setData} dialogs={dialogs} logAction={logAction} hasAdminAccess={hasAdminAccess} />}
-                  {activeTab === 'floors' && <FloorsView data={data} setData={setData} dialogs={dialogs} logAction={logAction} hasAdminAccess={hasAdminAccess} setManagingContent={setManagingContent} />}
-                  {activeTab === 'boxes' && <BoxesView data={data} setManagingContent={setManagingContent} />}
-                  {activeTab === 'activity' && <ActivityLogView data={data} />}
-                  {activeTab === 'settings' && <SettingsView data={data} setData={setData} dialogs={dialogs} logAction={logAction} hasAdminAccess={hasAdminAccess} />}
-                </div>
-                
-                {managingContent && (
-                    managingContent.initialMode === 'swap' && managingContent.type === 'room' ? (
-                        <RoomSwapModal 
-                            sourceRoom={{
-                                id: managingContent.id, 
-                                name: managingContent.name, 
-                                status: data.floors.flatMap(f => f.rooms).find(r => r.id === managingContent.id)?.status || 'Unknown'
-                            }}
-                            data={data}
-                            setData={setData}
-                            logAction={logAction}
-                            dialogs={dialogs}
-                            onClose={() => setManagingContent(null)}
-                        />
-                    ) : (
-                        <ContentManager 
-                            targetId={managingContent.id} 
-                            targetName={managingContent.name} 
-                            type={managingContent.type} 
-                            data={data}
-                            setData={setData}
-                            dialogs={dialogs}
-                            logAction={logAction}
-                            initialMode={managingContent.initialMode}
-                            onClose={() => setManagingContent(null)} 
-                        />
-                    )
-                )}
-                
-                {showProfileModal && <ProfileModal user={user} onUpdate={handleProfileUpdate} logAction={logAction} dialogs={dialogs} onClose={() => setShowProfileModal(false)} />}
-                
-                <CustomDialog 
-                    isOpen={dialogState.isOpen}
-                    type={dialogState.type}
-                    message={dialogState.message}
-                    defaultValue={dialogState.defaultValue}
-                    onConfirm={dialogState.onConfirm}
-                    onClose={() => setDialogState(prev => ({ ...prev, isOpen: false }))}
-                />
-              </main>
-            </div>
-          );
+            </div>`;
         }
 
-        const root = ReactDOM.createRoot(document.getElementById('root'));
-        root.render(<InventoryApp />);
+        function renderFastMoneyResult() {
+            const isWin = store.fmAnswers.total >= 200;
+            app.innerHTML = `
+            <div class="min-h-screen bg-blue-950 flex flex-col items-center justify-center text-white p-4 text-center">
+                <div class="bg-slate-900/80 backdrop-blur p-6 md:p-12 rounded-3xl border-4 border-yellow-500 shadow-2xl max-w-4xl w-full">
+                    ${isWin ? `
+                        <h1 class="text-4xl md:text-8xl font-black text-yellow-400 mb-4 md:mb-6 animate-bounce drop-shadow-lg">GRAND WINNER!</h1>
+                        <div class="flex justify-center mb-4 md:mb-8"><i data-lucide="trophy" class="w-20 h-20 md:w-32 md:h-32 text-yellow-300"></i></div>
+                        <p class="text-xl md:text-3xl text-blue-200 font-bold mb-2">Congratulations to</p>
+                        <p class="text-3xl md:text-7xl font-black text-white mb-8 md:mb-10 truncate">${store.fastMoneyWinner === 'teamA' ? store.teamNames.teamA : store.teamNames.teamB}</p>
+                    ` : `
+                        <h1 class="text-4xl md:text-8xl font-black text-gray-400 mb-4 md:mb-6 drop-shadow-lg">GAME OVER</h1>
+                        <div class="flex justify-center mb-4 md:mb-8"><i data-lucide="x" class="w-20 h-20 md:w-32 md:h-32 text-red-500"></i></div>
+                        <div class="bg-blue-900/50 p-4 md:p-6 rounded-xl border border-blue-700 mb-4 md:mb-6 inline-block">
+                            <p class="text-lg md:text-2xl text-blue-200 font-bold">Total Score</p>
+                            <p class="text-4xl md:text-6xl font-black text-white">${store.fmAnswers.total}</p>
+                        </div>
+                        <p class="text-lg md:text-2xl text-blue-300 font-bold mb-8 md:mb-10">Better luck next time!</p>
+                    `}
+                    
+                    <div class="w-full bg-gray-800 rounded-full h-6 md:h-8 mb-8 md:mb-12 border-2 border-gray-600 overflow-hidden relative max-w-xl mx-auto">
+                        <div class="absolute top-0 left-0 h-full bg-gradient-to-r from-green-500 to-green-400 transition-all duration-1000" style="width: ${Math.min(100, (store.fmAnswers.total / 200) * 100)}%"></div>
+                        <div class="absolute top-0 left-1/2 w-1 h-full bg-red-500 z-10" title="Goal: 200"></div>
+                        <span class="absolute inset-0 flex items-center justify-center text-[10px] md:text-xs font-bold text-white drop-shadow-md z-20">${store.fmAnswers.total} / 200</span>
+                    </div>
+
+                    <button onclick="store.phase='intro'; renderApp()" class="bg-blue-600 hover:bg-blue-500 text-white font-black px-8 md:px-12 py-3 md:py-5 rounded-full text-lg md:text-2xl shadow-lg transition-transform active:scale-95">RETURN TO MENU</button>
+                </div>
+            </div>`;
+        }
+
+        
+        // PWA Service Worker Registration
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js')
+                    .then(registration => console.log('ServiceWorker registration successful'))
+                    .catch(err => console.log('ServiceWorker registration failed: ', err));
+            });
+        }
+
+        // Initialize
+        renderApp();
     </script>
 </body>
 </html>
