@@ -1060,12 +1060,15 @@
 
             return (
               <div className="space-y-6">
-                <div className="flex justify-between items-center bg-white p-4 rounded-lg shadow-sm border border-gray-100">
-                  <div className="flex gap-4">
-                      <button onClick={() => setViewMode('active')} className={`px-4 py-2 rounded-lg font-medium text-sm transition-colors ${viewMode === 'active' ? 'bg-indigo-600 text-white' : 'text-gray-600 hover:bg-gray-100'}`}>Active Inventory</button>
-                      <button onClick={() => setViewMode('pullout')} className={`px-4 py-2 rounded-lg font-medium text-sm transition-colors ${viewMode === 'pullout' ? 'bg-red-600 text-white' : 'text-gray-600 hover:bg-gray-100'}`}>Pullout / Disposal</button>
+                <div className="flex flex-col md:flex-row justify-between items-center gap-4 bg-white p-4 rounded-lg shadow-sm border border-gray-100">
+                  <div className="flex gap-2 w-full md:w-auto">
+                      <button onClick={() => setViewMode('active')} className={`flex-1 md:flex-none px-4 py-2 rounded-lg font-medium text-sm text-center transition-colors ${viewMode === 'active' ? 'bg-indigo-600 text-white' : 'text-gray-600 hover:bg-gray-100'}`}>Active Inventory</button>
+                      <button onClick={() => setViewMode('pullout')} className={`flex-1 md:flex-none px-4 py-2 rounded-lg font-medium text-sm text-center transition-colors ${viewMode === 'pullout' ? 'bg-red-600 text-white' : 'text-gray-600 hover:bg-gray-100'}`}>Pullout / Disposal</button>
                   </div>
-                  <div className="relative"><Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" /><input type="text" placeholder="Search..." className="pl-9 pr-4 py-2 border rounded-full text-sm w-64 focus:ring-2 focus:ring-indigo-500 outline-none" value={searchTerm} onChange={e => setSearchTerm(e.target.value)}/></div>
+                  <div className="relative w-full md:w-auto">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
+                      <input type="text" placeholder="Search..." className="pl-9 pr-4 py-2 border rounded-full text-sm w-full md:w-64 focus:ring-2 focus:ring-indigo-500 outline-none" value={searchTerm} onChange={e => setSearchTerm(e.target.value)}/>
+                  </div>
                 </div>
                 <div className="space-y-6">
                     {data.categories.map(cat => (
@@ -1101,9 +1104,9 @@
                                                         const isExpanded = expandedGroups.includes(groupKey);
                                                         return (
                                                             <div key={idx} className={`border rounded-md p-3 transition-shadow ${group.available === 0 ? 'bg-gray-100 opacity-75' : 'bg-white hover:shadow-md'}`}>
-                                                                <div className="flex justify-between items-start">
-                                                                    <div><p className="font-medium text-gray-900">{group.name}</p><p className="text-xs text-gray-500">{group.sub}</p></div>
-                                                                    <div className="text-right">{viewMode === 'active' ? <>{group.available > 0 ? <Badge color="green">{group.available} Available</Badge> : <Badge color="red">No Stock</Badge>}<p className="text-[10px] text-gray-400 mt-1">Total Assets: {group.total}</p></> : <Badge color="red">Pullout</Badge>}</div>
+                                                                <div className="flex justify-between items-start gap-2">
+                                                                    <div className="min-w-0 flex-1"><p className="font-medium text-gray-900 truncate" title={group.name}>{group.name}</p><p className="text-xs text-gray-500 truncate">{group.sub}</p></div>
+                                                                    <div className="text-right shrink-0">{viewMode === 'active' ? <>{group.available > 0 ? <Badge color="green">{group.available} Available</Badge> : <Badge color="red">No Stock</Badge>}<p className="text-[10px] text-gray-400 mt-1">Total Assets: {group.total}</p></> : <Badge color="red">Pullout</Badge>}</div>
                                                                 </div>
                                                                 {hasAdminAccess && (<div className="mt-3 pt-2 border-t border-gray-100"><button onClick={() => setExpandedGroups(prev => isExpanded ? prev.filter(k => k !== groupKey) : [...prev, groupKey])} className="text-xs text-indigo-600 flex items-center gap-1 hover:underline w-full justify-center">{isExpanded ? 'Hide Details' : 'View Details'}</button>{isExpanded && (<div className="mt-2 space-y-1 max-h-32 overflow-y-auto">{group.items.map(item => (<div key={item.id} className="flex justify-between items-center text-xs p-1 hover:bg-gray-50 rounded group"><div className="flex flex-col"><span className="font-mono">{item.id}</span>{viewMode === 'active' && <span className={item.location === 'Unassigned' ? 'text-green-600' : 'text-gray-400'}>{item.location}</span>}</div><div className="flex items-center gap-2"><button onClick={() => handleToggleCondition(item.id, item.condition)} className={`px-1.5 py-0.5 rounded border text-[10px] ${item.condition === 'Defective' ? 'bg-red-50 text-red-600 border-red-200' : 'bg-green-50 text-green-600 border-green-200'} hover:opacity-80 transition-opacity`}>{item.condition || 'Working'}</button>{viewMode === 'active' ? <button onClick={() => handleMoveToPullout(item.id)} className="p-1 text-gray-300 hover:text-red-500" title="Move to Pullout"><Archive size={12} /></button> : <button onClick={() => handleRestoreItem(item.id)} className="p-1 text-gray-300 hover:text-green-500" title="Restore to Active"><ArrowUpDown size={12} /></button>}</div></div>))}</div>)}</div>)}
                                                             </div>
