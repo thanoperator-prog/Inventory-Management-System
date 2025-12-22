@@ -362,7 +362,7 @@
             )
         };
 
-        // --- Sub-Components (Defined BEFORE they are used) ---
+        // --- Sub-Components ---
 
         const RoomSwapModal = ({ sourceRoom, data, setData, logAction, onClose, dialogs }) => {
             const [targetRoomId, setTargetRoomId] = useState('');
@@ -1578,9 +1578,90 @@
           const [mobileMenuOpen, setMobileMenuOpen] = useState(false); // Mobile Menu State
           const [data, setData] = useState(INITIAL_DATA);
           const [isLoading, setIsLoading] = useState(true);
+          const [managingContent, setManagingContent] = useState(null); 
           const isRemoteUpdate = useRef(false);
           
+          // Toast state for double back press
+          const [showExitToast, setShowExitToast] = useState(false);
+          
           const [dialogState, setDialogState] = useState({ isOpen: false, type: 'alert', message: '', defaultValue: '', onConfirm: () => {} });
+
+          // --- Back Button Handling Refs & Logic ---
+          const stateRef = useRef({
+              managingContent: null,
+              showProfileModal: false,
+              mobileMenuOpen: false,
+              dialogOpen: false
+          });
+
+          // Sync refs with state for the event listener
+          useEffect(() => {
+              stateRef.current = {
+                  managingContent,
+                  showProfileModal,
+                  mobileMenuOpen,
+                  dialogOpen: dialogState.isOpen
+              };
+          }, [managingContent, showProfileModal, mobileMenuOpen, dialogState.isOpen]);
+
+          const lastBackPress = useRef(0);
+
+          useEffect(() => {
+              // Push initial state to allow intercepting the back button
+              window.history.pushState(null, document.title, window.location.href);
+
+              const handlePopState = (event) => {
+                  const { managingContent, showProfileModal, mobileMenuOpen, dialogOpen } = stateRef.current;
+
+                  // 1. Close Custom Dialogs first
+                  if (dialogOpen) {
+                      setDialogState(prev => ({ ...prev, isOpen: false }));
+                      window.history.pushState(null, document.title, window.location.href);
+                      return;
+                  }
+
+                  // 2. Close Modals (Content Manager or Profile)
+                  if (managingContent || showProfileModal) {
+                      if (managingContent) setManagingContent(null);
+                      if (showProfileModal) setShowProfileModal(false);
+                      window.history.pushState(null, document.title, window.location.href);
+                      return;
+                  }
+
+                  // 3. Close Mobile Menu
+                  if (mobileMenuOpen) {
+                      setMobileMenuOpen(false);
+                      window.history.pushState(null, document.title, window.location.href);
+                      return;
+                  }
+
+                  // 4. Double Back to Exit Logic
+                  const now = Date.now();
+                  if (now - lastBackPress.current < 2000) {
+                      // Allow exit (do not push state back)
+                      // This effectively lets the browser go back in history or close the PWA
+                  } else {
+                      lastBackPress.current = now;
+                      setShowExitToast(true);
+                      setTimeout(() => setShowExitToast(false), 2000);
+                      // Trap user again
+                      window.history.pushState(null, document.title, window.location.href);
+                  }
+              };
+
+              window.addEventListener('popstate', handlePopState);
+
+              // Force portrait lock on mount (if supported)
+              if (screen.orientation && screen.orientation.lock) {
+                  screen.orientation.lock("portrait").catch((error) => {
+                      // Silently fail if lock is not allowed
+                  });
+              }
+
+              return () => {
+                  window.removeEventListener('popstate', handlePopState);
+              };
+          }, []);
 
           // --- Firebase Sync Logic ---
           
@@ -1631,13 +1712,6 @@
           useEffect(() => {
               if (user) localStorage.setItem('ims_user_v1', JSON.stringify(user));
               else localStorage.removeItem('ims_user_v1');
-
-              // FORCE PORTRAIT LOCK
-              if (screen.orientation && screen.orientation.lock) {
-                  screen.orientation.lock("portrait").catch((error) => {
-                      console.warn("Orientation lock failed: ", error);
-                  });
-              }
           }, [user]);
 
           // ... (existing dialogs, managingContent, data, useEffects, logAction, hasAdminAccess, handleProfileUpdate, handleLogin code) ...
@@ -1647,7 +1721,14 @@
               showPrompt: (msg, defaultValue, onConfirm) => setDialogState({ isOpen: true, type: 'prompt', message: msg, defaultValue, onConfirm: (val) => { setDialogState(prev => ({...prev, isOpen: false})); setTimeout(() => onConfirm(val), 100); } })
           }), []);
 
-          const [managingContent, setManagingContent] = useState(null); 
+          // Make managingContent available to ref via render cycle
+          // const [managingContent, setManagingContent] = useState(null); // Already declared above in ref logic section? No, let's ensure variable scope is correct.
+          // FIX: managingContent is defined in state but used in ref. Let's make sure the state definition comes BEFORE the ref useEffect.
+          // Since I moved the state definition up in the previous response block, it is accessible. 
+          // However, for clarity in this single file generation, I will ensure the order is: State -> Ref -> Effect.
+          
+          // Re-ordering for safety in this block:
+          // already handled in the top section of InventoryApp in this response.
 
           const logAction = (action, details) => {
             const newLog = { id: Date.now(), timestamp: new Date().toISOString(), user: user?.name || 'Unknown', action, details };
@@ -1775,6 +1856,13 @@
                     onConfirm={dialogState.onConfirm}
                     onClose={() => setDialogState(prev => ({ ...prev, isOpen: false }))}
                 />
+
+                {/* Exit Toast Notification */}
+                {showExitToast && (
+                    <div className="fixed bottom-8 left-1/2 -translate-x-1/2 bg-gray-800 text-white px-4 py-2 rounded-full shadow-lg text-sm z-50 animate-in fade-in slide-in-from-bottom-2">
+                        Press back again to exit
+                    </div>
+                )}
               </main>
             </div>
           );
