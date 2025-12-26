@@ -5,14 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>IMS - Inventory Management System</title>
     
-    <!-- PWA Manifest & Icons -->
-    <link rel="manifest" href="manifest.json">
+    <!-- PWA Manifest & Icons (Note: Manifest may not load in preview mode) -->
+    <!-- <link rel="manifest" href="manifest.json"> -->
     <meta name="theme-color" content="#4f46e5">
     
     <!-- Default Favicon -->
-    <link rel="icon" type="image/png" href="./icon-512.png">
-    <!-- iOS / Apple Touch Icon -->
-    <link rel="apple-touch-icon" href="./icon-512.png">
+    <link rel="icon" type="image/png" href="https://cdn.jsdelivr.net/npm/lucide-static@0.321.0/icons/package.svg">
     
     <!-- React & ReactDOM -->
     <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
@@ -79,19 +77,19 @@
 <body class="bg-gray-100 text-gray-800 antialiased overscroll-none">
     <div id="root"></div>
 
-    <!-- Service Worker Registration -->
+    <!-- Service Worker Registration (Disabled for Preview) -->
     <script>
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('./service-worker.js')
-                    .then(registration => {
-                        console.log('ServiceWorker registration successful with scope: ', registration.scope);
-                    })
-                    .catch(err => {
-                        console.log('ServiceWorker registration failed: ', err);
-                    });
-            });
-        }
+        // if ('serviceWorker' in navigator) {
+        //     window.addEventListener('load', () => {
+        //         navigator.serviceWorker.register('./service-worker.js')
+        //             .then(registration => {
+        //                 console.log('ServiceWorker registration successful with scope: ', registration.scope);
+        //             })
+        //             .catch(err => {
+        //                 console.log('ServiceWorker registration failed: ', err);
+        //             });
+        //     });
+        // }
     </script>
 
     <script type="text/babel">
@@ -126,6 +124,11 @@
 
         // --- Icon Component Wrapper (Fixed for Lucide CDN) ---
         const Icon = ({ name, size = 24, className, ...props }) => {
+            // Check if lucide is available
+            if (typeof lucide === 'undefined' || !lucide.icons) {
+                return null;
+            }
+
             const iconData = lucide.icons[name];
             
             if (!iconData) {
@@ -194,6 +197,7 @@
         const Key = (p) => <Icon name="Key" {...p} />;
         const Filter = (p) => <Icon name="Filter" {...p} />;
         const LayoutGrid = (p) => <Icon name="LayoutGrid" {...p} />;
+        const Info = (p) => <Icon name="Info" {...p} />;
 
         // --- Constants & Helpers ---
 
@@ -360,6 +364,51 @@
                     </div>
                 </div>
             )
+        };
+
+        // --- Log Details Modal ---
+        const LogDetailsModal = ({ log, onClose }) => {
+            if (!log) return null;
+
+            // Simple parser: assumes details are either plain text or "Title: [item1], [item2], ..."
+            const parts = log.details.split(': ');
+            const title = parts.length > 1 ? parts[0] : 'Action Details';
+            const content = parts.length > 1 ? parts.slice(1).join(': ') : parts[0];
+            
+            // Check if content is a list of items (contains commas and brackets)
+            const isList = content.includes('], [');
+            const items = isList ? content.split(', ') : [content];
+
+            return (
+                <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+                    <div className="bg-white rounded-lg shadow-xl w-full max-w-md p-6 animate-in fade-in zoom-in duration-200 flex flex-col max-h-[80vh]">
+                        <div className="flex justify-between items-start mb-4 border-b pb-2">
+                            <div>
+                                <h3 className="text-lg font-bold text-gray-900">{log.action}</h3>
+                                <p className="text-xs text-gray-500">{new Date(log.timestamp).toLocaleString()}</p>
+                            </div>
+                            <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><X size={20}/></button>
+                        </div>
+                        <div className="flex-1 overflow-y-auto">
+                            <p className="font-medium text-sm text-gray-700 mb-2">{title}:</p>
+                            {isList ? (
+                                <ul className="space-y-1">
+                                    {items.map((item, idx) => (
+                                        <li key={idx} className="text-sm bg-gray-50 p-2 rounded border border-gray-100 font-mono text-gray-600">
+                                            {item}
+                                        </li>
+                                    ))}
+                                </ul>
+                            ) : (
+                                <p className="text-sm text-gray-600 whitespace-pre-wrap">{content}</p>
+                            )}
+                        </div>
+                        <div className="mt-4 pt-2 border-t flex justify-end">
+                            <Button onClick={onClose}>Close</Button>
+                        </div>
+                    </div>
+                </div>
+            );
         };
 
         // --- Sub-Components ---
@@ -595,7 +644,11 @@
                         ...prev,
                         items: prev.items.map(i => selectedItems.includes(i.id) ? { ...i, location: targetName, locationId: targetId, type: type } : i)
                     }));
-                    logAction('Batch Add', `Moved ${selectedItems.length} items to ${targetName}`);
+                    
+                    // Enhanced Log with Item Details
+                    const itemDetails = data.items.filter(i => selectedItems.includes(i.id)).map(i => `[${i.id}] ${i.name}`).join(', ');
+                    logAction('Batch Add', `Moved ${selectedItems.length} items to ${targetName}: ${itemDetails}`);
+                    
                     setMode('view');
                     setSelectedItems([]);
                 });
@@ -613,18 +666,53 @@
 
             const handleTransferSelected = () => {
                 if (!transferTarget || selectedItems.length === 0) { dialogs.showAlert("Please select items and a destination."); return; }
-                const tRoom = data.floors.flatMap(f => f.rooms).find(r => r.id === transferTarget);
-                const tBox = data.boxes.find(b => b.id === transferTarget);
-                let tName = tRoom ? tRoom.name : tBox ? tBox.name : '';
-                let tType = tRoom ? 'room' : tBox ? 'box' : '';
+                
+                let tName = '';
+                let tType = 'none';
+                let tStatus = 'Active';
+                let tLocationId = transferTarget;
+
+                if (transferTarget === 'INVENTORY') {
+                    tName = 'Unassigned';
+                    tType = 'none';
+                    tStatus = 'Active';
+                    tLocationId = '';
+                } else if (transferTarget === 'PULLOUT') {
+                    tName = 'Pullout';
+                    tType = 'none';
+                    tStatus = 'Pullout';
+                    tLocationId = 'pullout';
+                } else {
+                    const tRoom = data.floors.flatMap(f => f.rooms).find(r => r.id === transferTarget);
+                    const tBox = data.boxes.find(b => b.id === transferTarget);
+                    
+                    if (tRoom) {
+                        tName = tRoom.name;
+                        tType = 'room';
+                    } else if (tBox) {
+                        tName = tBox.name;
+                        tType = 'box';
+                    }
+                }
+
                 if (!tName) return;
 
                 dialogs.showConfirm(`Transfer ${selectedItems.length} items to ${tName}?`, () => {
                     setData(prev => ({
                         ...prev,
-                        items: prev.items.map(i => selectedItems.includes(i.id) ? { ...i, location: tName, locationId: transferTarget, type: tType } : i)
+                        items: prev.items.map(i => selectedItems.includes(i.id) ? { 
+                            ...i, 
+                            location: tName, 
+                            locationId: tLocationId, 
+                            type: tType,
+                            status: tStatus 
+                        } : i)
                     }));
-                    logAction('Transfer Selected', `Transferred ${selectedItems.length} items from ${targetName} to ${tName}`);
+                    
+                    // Enhanced Log with Item Details
+                    const itemDetails = data.items.filter(i => selectedItems.includes(i.id)).map(i => `[${i.id}] ${i.name}`).join(', ');
+                    logAction('Transfer Selected', `Transferred ${selectedItems.length} items from ${targetName} to ${tName}: ${itemDetails}`);
+                    
                     setMode('view');
                     setSelectedItems([]);
                 });
@@ -770,13 +858,41 @@
                                         ) : <p className="p-4 text-center text-gray-400 italic">This location is empty.</p>}
                                     </div>
                                     <div className="pt-2">
-                                        <Select label="Destination" value={transferTarget} onChange={e => setTransferTarget(e.target.value)} options={[
-                                            { value: '', label: 'Select Destination...' },
-                                            { label: '--- Rooms ---', value: 'disabled-rooms', disabled: true },
-                                            ...data.floors.flatMap(f => f.rooms.filter(r => r.id !== targetId).map(r => ({ value: r.id, label: `Room: ${r.name}` }))),
-                                            { label: '--- Boxes ---', value: 'disabled-boxes', disabled: true },
-                                            ...data.boxes.filter(b => b.id !== targetId).map(b => ({ value: b.id, label: `Box: ${b.name}` }))
-                                        ]} />
+                                        <div className="mb-4">
+                                            <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Destination</label>
+                                            <select 
+                                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
+                                                value={transferTarget} 
+                                                onChange={e => setTransferTarget(e.target.value)}
+                                            >
+                                                <option value="">Select Destination...</option>
+                                                
+                                                <optgroup label="General">
+                                                    <option value="INVENTORY">Active Inventory (Unassign)</option>
+                                                    <option value="PULLOUT">Pullout / Disposal</option>
+                                                </optgroup>
+
+                                                {data.floors.map(floor => {
+                                                    const availableRooms = floor.rooms.filter(r => r.id !== targetId);
+                                                    if (availableRooms.length === 0) return null;
+                                                    return (
+                                                        <optgroup key={floor.id} label={`${floor.name} (${floor.code})`}>
+                                                            {availableRooms.map(r => (
+                                                                <option key={r.id} value={r.id}>Room: {r.name}</option>
+                                                            ))}
+                                                        </optgroup>
+                                                    );
+                                                })}
+
+                                                {data.boxes.length > 0 && (
+                                                    <optgroup label="Storage Boxes">
+                                                        {data.boxes.filter(b => b.id !== targetId).map(b => (
+                                                            <option key={b.id} value={b.id}>Box: {b.name}</option>
+                                                        ))}
+                                                    </optgroup>
+                                                )}
+                                            </select>
+                                        </div>
                                         <Button className="w-full" onClick={handleTransferSelected} disabled={selectedItems.length === 0 || !transferTarget}>Transfer {selectedItems.length} Items</Button>
                                     </div>
                                 </div>
@@ -1265,28 +1381,57 @@
             );
         };
 
-        const ActivityLogView = ({ data }) => (
-            <div className="space-y-6">
-            <h2 className="text-2xl font-bold text-gray-800">Activity Log</h2>
-            <Card className="overflow-hidden">
-                <div className="overflow-x-auto">
-                <table className="w-full text-left text-sm">
-                    <thead className="bg-gray-50 border-b border-gray-200"><tr><th className="px-6 py-3 font-semibold text-gray-700">Timestamp</th><th className="px-6 py-3 font-semibold text-gray-700">User</th><th className="px-6 py-3 font-semibold text-gray-700">Action</th><th className="px-6 py-3 font-semibold text-gray-700">Details</th></tr></thead>
-                    <tbody className="divide-y divide-gray-200">
-                    {data.logs.map(log => (
-                        <tr key={log.id} className="hover:bg-gray-50">
-                        <td className="px-6 py-3 whitespace-nowrap text-gray-500">{new Date(log.timestamp).toLocaleString('en-US', { timeZone: 'Asia/Manila' })}</td>
-                        <td className="px-6 py-3 font-medium text-gray-900">{log.user}</td>
-                        <td className="px-6 py-3"><span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">{log.action}</span></td>
-                        <td className="px-6 py-3 text-gray-600">{log.details}</td>
-                        </tr>
-                    ))}
-                    </tbody>
-                </table>
+        const ActivityLogView = ({ data }) => {
+            const [selectedLog, setSelectedLog] = useState(null);
+
+            return (
+                <div className="space-y-6">
+                    <h2 className="text-2xl font-bold text-gray-800">Activity Log</h2>
+                    <Card className="overflow-hidden">
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-left text-sm">
+                                <thead className="bg-gray-50 border-b border-gray-200">
+                                    <tr>
+                                        <th className="px-6 py-3 font-semibold text-gray-700">Timestamp</th>
+                                        <th className="px-6 py-3 font-semibold text-gray-700">User</th>
+                                        <th className="px-6 py-3 font-semibold text-gray-700">Action</th>
+                                        <th className="px-6 py-3 font-semibold text-gray-700">Details</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-gray-200">
+                                    {data.logs.map(log => {
+                                        const isBatchAction = log.details.includes('], [');
+                                        return (
+                                            <tr key={log.id} className="hover:bg-gray-50">
+                                                <td className="px-6 py-3 whitespace-nowrap text-gray-500">{new Date(log.timestamp).toLocaleString('en-US', { timeZone: 'Asia/Manila' })}</td>
+                                                <td className="px-6 py-3 font-medium text-gray-900">{log.user}</td>
+                                                <td className="px-6 py-3"><span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">{log.action}</span></td>
+                                                <td className="px-6 py-3 text-gray-600">
+                                                    {isBatchAction ? (
+                                                        <div className="flex items-center gap-2">
+                                                            <span className="truncate max-w-xs">{log.details.split(':')[0]}...</span>
+                                                            <button 
+                                                                onClick={() => setSelectedLog(log)}
+                                                                className="text-xs bg-indigo-50 text-indigo-600 px-2 py-1 rounded border border-indigo-100 hover:bg-indigo-100 transition-colors whitespace-nowrap flex items-center gap-1"
+                                                            >
+                                                                <Info size={12} /> View Details
+                                                            </button>
+                                                        </div>
+                                                    ) : (
+                                                        log.details
+                                                    )}
+                                                </td>
+                                            </tr>
+                                        );
+                                    })}
+                                </tbody>
+                            </table>
+                        </div>
+                    </Card>
+                    <LogDetailsModal log={selectedLog} onClose={() => setSelectedLog(null)} />
                 </div>
-            </Card>
-            </div>
-        );
+            );
+        };
 
         const SettingsView = ({ data, setData, dialogs, logAction, hasAdminAccess }) => {
             const [settingsTab, setSettingsTab] = useState('storage');
@@ -1517,7 +1662,7 @@
               <div className="space-y-6">
                 <div className="border-b border-gray-200"><nav className="-mb-px flex space-x-8 overflow-x-auto">{['Storage', 'Floor', 'Boxes', 'Accounts', 'Report', 'Backup'].map((tab) => (<button key={tab} onClick={() => setSettingsTab(tab.toLowerCase())} className={`py-4 px-1 border-b-2 font-medium text-sm whitespace-nowrap ${settingsTab === tab.toLowerCase() ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}>{tab}</button>))}</nav></div>
                 <div className="mt-6">
-                  {settingsTab === 'storage' && (<div className="space-y-6"><Button onClick={handleAddCategory} className="w-full py-4 border-dashed border-2 bg-gray-50 hover:bg-white text-gray-500 hover:text-indigo-600"><Plus className="mr-2"/> Add New Category</Button>{data.categories.map((cat, idx) => (<Card key={cat.id} className="p-0 overflow-hidden"><div className="bg-gray-50 p-4 border-b border-gray-200 flex justify-between items-center">{editingCat === cat.id ? (<div className="flex gap-2"><input value={tempEditValue} onChange={e => setTempEditValue(e.target.value)} className="border rounded px-2 py-1" autoFocus /><Button size="sm" onClick={() => handleRenameCat(cat.id, tempEditValue)}><Save size={14} className="mr-1"/> Save</Button><Button size="sm" variant="secondary" onClick={() => setEditingCat(null)}>Cancel</Button></div>) : (<div className="flex items-center gap-3"><span className="font-bold text-lg">{cat.name}</span><div className="flex gap-1"><button onClick={() => { setEditingCat(cat.id); setTempEditValue(cat.name); }} className="text-gray-400 hover:text-indigo-600 p-1"><Edit size={16}/></button><button onClick={() => handleDeleteCat(cat.id, cat.name)} className="text-gray-400 hover:text-red-600 p-1"><Trash2 size={16}/></button></div></div>)}<div className="flex gap-2 text-xs"><span className="bg-white px-2 py-1 rounded border">{cat.subs.length} Sub-cats</span></div></div><div className="p-4 space-y-4">{cat.subs.map((sub, sIdx) => (<div key={`${sub}-${sIdx}`} className="border p-4 rounded-lg bg-white shadow-sm"><div className="flex justify-between items-center mb-4 border-b pb-3">{editingSub?.cat === cat.name && editingSub?.sub === sub ? (<div className="flex gap-2"><input value={tempSubValue} onChange={e => setTempSubValue(e.target.value)} className="border rounded px-2 py-1 text-xs" autoFocus /><Button size="sm" onClick={() => handleRenameSub(cat.name, sub, tempSubValue)}><Save size={14} className="mr-1"/> Save</Button><Button size="sm" variant="secondary" onClick={() => setEditingSub(null)}>Cancel</Button></div>) : (<div className="flex items-center gap-2"><span className="font-bold text-gray-700 text-lg">{sub}</span><button onClick={() => { setEditingSub({cat: cat.name, sub}); setTempSubValue(sub); }} className="text-gray-400 hover:text-indigo-600"><Edit size={14}/></button><button onClick={() => handleDeleteSub(cat.name, sub)} className="text-gray-400 hover:text-red-600"><Trash2 size={14}/></button></div>)}<Button size="sm" variant="secondary" onClick={() => setCreatingProduct({cat: cat.name, sub})}><Plus size={14} /> Create Product Card</Button></div>{creatingProduct?.cat === cat.name && creatingProduct?.sub === sub && (<div className="bg-blue-50 p-3 rounded mb-4 flex gap-2 items-center animate-in fade-in"><span className="text-xs font-bold text-blue-700 whitespace-nowrap">New Item Name:</span><input className="flex-1 border border-blue-200 rounded px-2 py-1 text-sm focus:outline-none focus:border-blue-500" placeholder="e.g. LED Panel 500W" autoFocus value={newProductName} onChange={e => setNewProductName(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleCreateProduct(cat.name, sub)} /><Button size="sm" onClick={() => handleCreateProduct(cat.name, sub)}>Create</Button><Button size="sm" variant="ghost" onClick={() => {setCreatingProduct(null); setNewProductName('');}}><X size={14}/></Button></div>)}<div className="space-y-2"><p className="text-[10px] font-bold text-gray-400 uppercase tracking-wide">Registered Items:</p><div className="grid grid-cols-1 md:grid-cols-2 gap-2">{uniqueProducts.filter(p => p.cat === cat.name && p.sub === sub).map((prod, pIdx) => (<div key={pIdx} className="flex justify-between items-center text-sm p-3 bg-gray-50 rounded border border-gray-100 hover:border-gray-300 transition-colors"><span className="font-medium text-gray-700">{prod.name}</span><div className="flex items-center gap-2"><span className="text-xs text-gray-500 bg-white px-2 py-0.5 rounded border">Qty: {data.items.filter(i => i.name === prod.name).length}</span><button title="Rename Product" onClick={() => { dialogs.showPrompt("Rename Product Type:", prod.name, (newName) => { handleRenameProduct(prod.name, newName, cat.name, sub); }); }} className="text-gray-400 hover:text-blue-600 p-1 hover:bg-blue-50 rounded"><Edit size={14}/></button><button title="Delete Product" onClick={() => handleDeleteProduct(prod.name, cat.name, sub)} className="text-gray-400 hover:text-red-600 p-1 hover:bg-red-50 rounded"><Trash2 size={14}/></button></div></div>))}</div>{uniqueProducts.filter(p => p.cat === cat.name && p.sub === sub).length === 0 && (<p className="text-xs text-gray-400 italic p-2 border border-dashed rounded text-center">No products registered yet.</p>)}</div></div>))}<Button size="sm" variant="ghost" className="w-full border border-dashed" onClick={() => handleAddSubCategory(cat.id)}><Plus size={14} className="mr-1"/> Add Sub-Category</Button></div></Card>))}</div>)}
+                  {settingsTab === 'storage' && (<div className="space-y-6"><Button onClick={handleAddCategory} className="w-full py-4 border-dashed border-2 bg-gray-50 hover:bg-white text-gray-500 hover:text-indigo-600"><Plus className="mr-2"/> Add New Category</Button>{data.categories.map((cat, idx) => (<Card key={cat.id} className="p-0 overflow-hidden"><div className="bg-gray-50 p-4 border-b border-gray-200 flex justify-between items-center">{editingCat === cat.id ? (<div className="flex gap-2"><input value={tempEditValue} onChange={e => setTempEditValue(e.target.value)} className="border rounded px-2 py-1" autoFocus /><Button size="sm" onClick={() => handleRenameCat(cat.id, tempEditValue)}><Save size={14} className="mr-1"/> Save</Button><Button size="sm" variant="secondary" onClick={() => setEditingCat(null)}>Cancel</Button></div>) : (<div className="flex items-center gap-3"><span className="font-bold text-lg">{cat.name}</span><div className="flex gap-1"><button onClick={() => { setEditingCat(cat.id); setTempEditValue(cat.name); }} className="text-gray-400 hover:text-indigo-600 p-1"><Edit size={16}/></button><button onClick={() => handleDeleteCat(cat.id, cat.name)} className="text-gray-400 hover:text-red-600 p-1"><Trash2 size={16}/></button></div></div>)}<div className="flex gap-2 text-xs"><span className="bg-white px-2 py-1 rounded border">{cat.subs.length} Sub-cats</span></div></div><div className="p-4 space-y-4">{cat.subs.map((sub, sIdx) => (<div key={`${sub}-${sIdx}`} className="border p-4 rounded-lg bg-white shadow-sm"><div className="flex justify-between items-center mb-4 border-b pb-3">{editingSub?.cat === cat.name && editingSub?.sub === sub ? (<div className="flex gap-2"><input value={tempSubValue} onChange={e => setTempSubValue(e.target.value)} className="border rounded px-2 py-1 text-xs" autoFocus /><Button size="sm" onClick={() => handleRenameSub(cat.name, sub, tempSubValue)}><Save size={14} className="mr-1"/> Save</Button><Button size="sm" variant="secondary" onClick={() => setEditingSub(null)}>Cancel</Button></div>) : (<div className="flex items-center gap-2"><span className="font-bold text-gray-700 text-lg">{sub}</span><button onClick={() => { setEditingSub({cat: cat.name, sub}); setTempSubValue(sub); }} className="text-gray-400 hover:text-indigo-600"><Edit size={14}/></button><button onClick={() => handleDeleteSub(cat.name, sub)} className="text-gray-400 hover:text-red-600"><Trash2 size={14}/></button></div>)}<Button size="sm" variant="secondary" onClick={() => setCreatingProduct({cat: cat.name, sub})}><Plus size={14} /> <span className="hidden md:inline">Create Product Card</span></Button></div>{creatingProduct?.cat === cat.name && creatingProduct?.sub === sub && (<div className="bg-blue-50 p-3 rounded mb-4 flex gap-2 items-center animate-in fade-in"><span className="text-xs font-bold text-blue-700 whitespace-nowrap">New Item Name:</span><input className="flex-1 border border-blue-200 rounded px-2 py-1 text-sm focus:outline-none focus:border-blue-500" placeholder="e.g. LED Panel 500W" autoFocus value={newProductName} onChange={e => setNewProductName(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleCreateProduct(cat.name, sub)} /><Button size="sm" onClick={() => handleCreateProduct(cat.name, sub)}>Create</Button><Button size="sm" variant="ghost" onClick={() => {setCreatingProduct(null); setNewProductName('');}}><X size={14}/></Button></div>)}<div className="space-y-2"><p className="text-[10px] font-bold text-gray-400 uppercase tracking-wide">Registered Items:</p><div className="grid grid-cols-1 md:grid-cols-2 gap-2">{uniqueProducts.filter(p => p.cat === cat.name && p.sub === sub).map((prod, pIdx) => (<div key={pIdx} className="flex justify-between items-center text-sm p-3 bg-gray-50 rounded border border-gray-100 hover:border-gray-300 transition-colors"><span className="font-medium text-gray-700">{prod.name}</span><div className="flex items-center gap-2"><span className="text-xs text-gray-500 bg-white px-2 py-0.5 rounded border">Qty: {data.items.filter(i => i.name === prod.name).length}</span><button title="Rename Product" onClick={() => { dialogs.showPrompt("Rename Product Type:", prod.name, (newName) => { handleRenameProduct(prod.name, newName, cat.name, sub); }); }} className="text-gray-400 hover:text-blue-600 p-1 hover:bg-blue-50 rounded"><Edit size={14}/></button><button title="Delete Product" onClick={() => handleDeleteProduct(prod.name, cat.name, sub)} className="text-gray-400 hover:text-red-600 p-1 hover:bg-red-50 rounded"><Trash2 size={14}/></button></div></div>))}</div>{uniqueProducts.filter(p => p.cat === cat.name && p.sub === sub).length === 0 && (<p className="text-xs text-gray-400 italic p-2 border border-dashed rounded text-center">No products registered yet.</p>)}</div></div>))}<Button size="sm" variant="ghost" className="w-full border border-dashed" onClick={() => handleAddSubCategory(cat.id)}><Plus size={14} className="mr-1"/> Add Sub-Category</Button></div></Card>))}</div>)}
 
                   {settingsTab === 'floor' && (<div className="space-y-6">{data.floors.map((floor) => (<Card key={floor.id} className="p-0"><div className="bg-gray-50 p-4 border-b border-gray-200 flex justify-between items-center"><div className="flex items-center gap-2"><span className="font-bold">{floor.name}</span><button className="text-gray-400 hover:text-indigo-600" onClick={() => { dialogs.showPrompt("Rename Floor:", floor.name, (newName) => { handleRenameFloor(floor.id, newName); }); }}><Edit size={14}/></button><Badge>{floor.code}</Badge></div><div className="flex gap-2"><Button size="sm" variant="secondary" onClick={() => { dialogs.showPrompt("New Room Name:", "", (name) => { if(name) { const nextRoomId = generateRoomId(floor.code, data.floors.flatMap(f => f.rooms)); const newRoom = { id: nextRoomId, name, status: 'Vacant' }; setData(prev => ({...prev, floors: prev.floors.map(f => f.id === floor.id ? { ...f, rooms: [...f.rooms, newRoom] } : f)})); } }); }}>Add Room</Button><button className="text-red-400 p-2 hover:bg-red-50 rounded" onClick={() => handleDeleteFloor(floor.id)}><Trash2 size={16}/></button></div></div><div className="p-4 space-y-2">{floor.rooms.map((room) => (<div key={room.id} className="flex items-center justify-between p-3 border rounded hover:bg-gray-50"><div className="flex items-center gap-3"><span className="font-mono text-xs bg-gray-200 px-1 rounded text-gray-600">{room.id}</span><span className="font-medium">{room.name}</span><button className="text-gray-300 hover:text-indigo-600" onClick={() => { dialogs.showPrompt("Rename Room:", room.name, (newName) => { handleRenameRoom(floor.id, room.id, newName); }); }}><Edit size={12}/></button></div><div className="flex items-center gap-2"><button className="text-red-400 hover:text-red-600 ml-2" onClick={() => handleDeleteRoom(floor.id, room.id)}><Trash2 size={14}/></button></div></div>))}</div></Card>))}<Button variant="secondary" className="w-full" onClick={() => { dialogs.showPrompt("New Floor Name (e.g. 3rd Floor):", "", (name) => { if(name) { dialogs.showPrompt("Floor Code (e.g. F3):", "", (code) => { if(code) { const newId = generateNextId(data.floors, 'f'); const newFloor = { id: newId, name, code, rooms: [] }; setData(prev => ({ ...prev, floors: [...prev.floors, newFloor] })); } }); } }); }}>+ Add New Floor</Button></div>)}
                   
@@ -1714,21 +1859,12 @@
               else localStorage.removeItem('ims_user_v1');
           }, [user]);
 
-          // ... (existing dialogs, managingContent, data, useEffects, logAction, hasAdminAccess, handleProfileUpdate, handleLogin code) ...
           const dialogs = useMemo(() => ({
               showAlert: (msg) => setDialogState({ isOpen: true, type: 'alert', message: msg, onConfirm: () => setDialogState(prev => ({...prev, isOpen: false})) }),
               showConfirm: (msg, onConfirm) => setDialogState({ isOpen: true, type: 'confirm', message: msg, onConfirm: () => { setDialogState(prev => ({...prev, isOpen: false})); setTimeout(onConfirm, 100); } }),
               showPrompt: (msg, defaultValue, onConfirm) => setDialogState({ isOpen: true, type: 'prompt', message: msg, defaultValue, onConfirm: (val) => { setDialogState(prev => ({...prev, isOpen: false})); setTimeout(() => onConfirm(val), 100); } })
           }), []);
 
-          // Make managingContent available to ref via render cycle
-          // const [managingContent, setManagingContent] = useState(null); // Already declared above in ref logic section? No, let's ensure variable scope is correct.
-          // FIX: managingContent is defined in state but used in ref. Let's make sure the state definition comes BEFORE the ref useEffect.
-          // Since I moved the state definition up in the previous response block, it is accessible. 
-          // However, for clarity in this single file generation, I will ensure the order is: State -> Ref -> Effect.
-          
-          // Re-ordering for safety in this block:
-          // already handled in the top section of InventoryApp in this response.
 
           const logAction = (action, details) => {
             const newLog = { id: Date.now(), timestamp: new Date().toISOString(), user: user?.name || 'Unknown', action, details };
@@ -1773,7 +1909,7 @@
               {/* Mobile Header */}
               <div className="lg:hidden flex items-center justify-between bg-white border-b border-gray-200 p-4 sticky top-0 z-20 print-hidden shadow-sm">
                  <div className="flex items-center gap-3">
-                     <img src="./icon-512.png" className="w-8 h-8 object-contain" alt="IMS Logo" />
+                     <Package className="w-8 h-8 text-indigo-600" />
                      <span className="font-bold text-gray-900 text-lg">IMS</span>
                  </div>
                  <button onClick={() => setMobileMenuOpen(!mobileMenuOpen)} className="p-2 text-gray-600 rounded-md hover:bg-gray-100 active:bg-gray-200">
@@ -1792,7 +1928,7 @@
               {/* Sidebar */}
               <aside className={`flex flex-col w-64 bg-white border-r border-gray-200 fixed inset-y-0 left-0 z-40 print-hidden transition-transform duration-300 ease-in-out lg:translate-x-0 ${mobileMenuOpen ? 'translate-x-0 shadow-xl' : '-translate-x-full'}`}>
                 <div className="p-6 flex items-center gap-3 border-b border-gray-100">
-                    <img src="./icon-512.png" className="w-10 h-10 object-contain" alt="IMS Logo" />
+                    <Package className="w-10 h-10 text-indigo-600" />
                     <div><h1 className="font-bold text-gray-900 leading-tight">IMS</h1><p className="text-[10px] text-gray-400 font-medium">V10.7 ENTERPRISE</p></div>
                 </div>
                 <nav className="flex-1 py-6 space-y-1 overflow-y-auto">
