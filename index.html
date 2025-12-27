@@ -74,7 +74,7 @@
         }
     </style>
 </head>
-<body class="bg-gray-100 text-gray-800 antialiased overscroll-none">
+<body class="bg-white text-gray-900 antialiased overscroll-none">
     <div id="root"></div>
 
     <!-- Service Worker Registration (Disabled for Preview) -->
@@ -273,7 +273,7 @@
         // --- Common Components ---
 
         const Card = ({ children, className = "" }) => (
-            <div className={`bg-white rounded-lg shadow-sm border border-gray-100 ${className}`}>
+            <div className={`bg-white rounded-lg shadow-sm border border-gray-200 ${className}`}>
                 {children}
             </div>
         );
@@ -571,6 +571,7 @@
                                     type={showPassword ? "text" : "password"} 
                                     value={formData.password} 
                                     onChange={e => setFormData({...formData, password: e.target.value})} 
+                                
                                 />
                                 <button 
                                     type="button" 
@@ -990,8 +991,23 @@
             );
         };
 
-        const ReportGenerator = ({ data }) => {
-            const [reportFilter, setReportFilter] = useState('All');
+        const ReportGenerator = ({ data, dialogs }) => {
+            const [filter, setFilter] = useState('All');
+            const [sections, setSections] = useState({
+                overview: true,
+                storage: true,
+                rooms: true,
+                boxes: true
+            });
+            const [selectedRooms, setSelectedRooms] = useState(new Set());
+            const [expandRooms, setExpandRooms] = useState(false);
+
+            // Initialize all rooms selected by default on load
+            useEffect(() => {
+                const allIds = data.floors.flatMap(f => f.rooms.map(r => r.id));
+                setSelectedRooms(new Set(allIds));
+            }, [data.floors.length]); 
+
             useEffect(() => {
                 if (!window.html2pdf) {
                     const script = document.createElement('script');
@@ -1002,58 +1018,97 @@
                 }
             }, []);
 
+            const toggleSection = (key) => setSections(p => ({...p, [key]: !p[key]}));
+            
+            const handleRoomToggle = (id) => {
+                const next = new Set(selectedRooms);
+                if(next.has(id)) next.delete(id);
+                else next.add(id);
+                setSelectedRooms(next);
+            };
+
+            const handleFloorToggle = (floor) => {
+                const floorRoomIds = floor.rooms.map(r => r.id);
+                const allSelected = floorRoomIds.every(id => selectedRooms.has(id));
+                const next = new Set(selectedRooms);
+                if (allSelected) {
+                    floorRoomIds.forEach(id => next.delete(id));
+                } else {
+                    floorRoomIds.forEach(id => next.add(id));
+                }
+                setSelectedRooms(next);
+            };
+
             const filteredItems = useMemo(() => {
-                switch (reportFilter) {
+                switch (filter) {
                     case 'Active': return data.items.filter(i => i.status === 'Active');
                     case 'Defective': return data.items.filter(i => i.condition === 'Defective');
                     case 'Pullout': return data.items.filter(i => i.status === 'Pullout');
                     default: return data.items;
                 }
-            }, [data.items, reportFilter]);
+            }, [data.items, filter]);
 
-            const stats = {
-                total: data.items.length,
-                active: data.items.filter(i => i.status === 'Active').length,
-                defective: data.items.filter(i => i.condition === 'Defective').length,
-                pullout: data.items.filter(i => i.status === 'Pullout').length,
-                totalRooms: data.floors.reduce((acc, f) => acc + f.rooms.length, 0),
-                occupiedRooms: data.floors.reduce((acc, f) => acc + f.rooms.filter(r => r.status === 'Occupied').length, 0),
-                vacantRooms: data.floors.reduce((acc, f) => acc + f.rooms.filter(r => r.status === 'Vacant').length, 0),
-                maintenanceRooms: data.floors.reduce((acc, f) => acc + f.rooms.filter(r => r.status === 'Maintenance').length, 0)
-            };
+            const { stats, storageGrouped, roomGrouped, boxGrouped } = useMemo(() => {
+                // Stats based on Filtered Items
+                const statsObj = {
+                    total: filteredItems.length,
+                    active: filteredItems.filter(i => i.status === 'Active').length,
+                    defective: filteredItems.filter(i => i.condition === 'Defective').length,
+                    pullout: filteredItems.filter(i => i.status === 'Pullout').length,
+                    totalRooms: data.floors.reduce((acc, f) => acc + f.rooms.length, 0),
+                    occupiedRooms: data.floors.reduce((acc, f) => acc + f.rooms.filter(r => r.status === 'Occupied').length, 0),
+                    vacantRooms: data.floors.reduce((acc, f) => acc + f.rooms.filter(r => r.status === 'Vacant').length, 0),
+                    maintenanceRooms: data.floors.reduce((acc, f) => acc + f.rooms.filter(r => r.status === 'Maintenance').length, 0),
+                };
 
-            const getGroupedItems = () => {
-                const storageItems = filteredItems.filter(i => i.location === 'Unassigned' && i.status !== 'Pullout');
-                const roomItems = filteredItems.filter(i => i.type === 'room');
-                const boxItems = filteredItems.filter(i => i.type === 'box');
+                const storageItems = sections.storage ? filteredItems.filter(i => i.location === 'Unassigned' && i.status !== 'Pullout') : [];
+                const roomItems = sections.rooms ? filteredItems.filter(i => i.type === 'room') : [];
+                const boxItems = sections.boxes ? filteredItems.filter(i => i.type === 'box') : [];
 
-                const storageGrouped = {};
+                const sGrouped = {};
                 storageItems.forEach(i => {
-                    if (!storageGrouped[i.category]) storageGrouped[i.category] = {};
-                    if (!storageGrouped[i.category][i.subCategory]) storageGrouped[i.category][i.subCategory] = [];
-                    storageGrouped[i.category][i.subCategory].push(i);
+                    if (!sGrouped[i.category]) sGrouped[i.category] = {};
+                    if (!sGrouped[i.category][i.subCategory]) sGrouped[i.category][i.subCategory] = [];
+                    sGrouped[i.category][i.subCategory].push(i);
                 });
 
-                const roomGrouped = {};
-                data.floors.forEach(floor => {
-                    floor.rooms.forEach(room => {
-                        const itemsInRoom = roomItems.filter(i => i.locationId === room.id);
-                        if (itemsInRoom.length > 0) {
-                            if (!roomGrouped[floor.name]) roomGrouped[floor.name] = [];
-                            roomGrouped[floor.name].push({ room, items: itemsInRoom });
-                        }
+                const rGrouped = {};
+                if (sections.rooms) {
+                    data.floors.forEach(floor => {
+                        // Filter rooms based on selection
+                        const selectedFloorRooms = floor.rooms.filter(r => selectedRooms.has(r.id));
+                        
+                        selectedFloorRooms.forEach(room => {
+                            const itemsInRoom = roomItems.filter(i => i.locationId === room.id);
+                            
+                            if (itemsInRoom.length > 0) {
+                                // Group by Category > SubCategory
+                                const groupedItems = {};
+                                itemsInRoom.forEach(item => {
+                                    const cat = item.category || 'Uncategorized';
+                                    const sub = item.subCategory || 'General';
+                                    if (!groupedItems[cat]) groupedItems[cat] = {};
+                                    if (!groupedItems[cat][sub]) groupedItems[cat][sub] = [];
+                                    groupedItems[cat][sub].push(item);
+                                });
+
+                                if (!rGrouped[floor.name]) rGrouped[floor.name] = [];
+                                rGrouped[floor.name].push({ room, groupedItems });
+                            }
+                        });
                     });
-                });
+                }
 
-                const boxGrouped = [];
-                data.boxes.forEach(box => {
-                    const itemsInBox = boxItems.filter(i => i.locationId === box.id);
-                    if (itemsInBox.length > 0) boxGrouped.push({ box, items: itemsInBox });
-                });
-                return { storageGrouped, roomGrouped, boxGrouped };
-            };
+                const bGrouped = [];
+                if (sections.boxes) {
+                    data.boxes.forEach(box => {
+                        const itemsInBox = boxItems.filter(i => i.locationId === box.id);
+                        if (itemsInBox.length > 0) bGrouped.push({ box, items: itemsInBox });
+                    });
+                }
 
-            const { storageGrouped, roomGrouped, boxGrouped } = getGroupedItems();
+                return { stats: statsObj, storageGrouped: sGrouped, roomGrouped: rGrouped, boxGrouped: bGrouped };
+            }, [filteredItems, data.floors, data.boxes, sections, selectedRooms]);
 
             const handleDownloadPDF = () => {
                 const element = document.getElementById('report-content');
@@ -1068,68 +1123,224 @@
                     };
                     window.html2pdf().set(opt).from(element).save();
                 } else {
-                    alert("PDF Generator is loading...");
+                    if(dialogs && dialogs.showAlert) {
+                        dialogs.showAlert("PDF Generator is loading... Please try again in a moment.");
+                    }
                 }
             };
 
             return (
-                <div className="p-4 lg:p-8 text-center space-y-6 animate-in fade-in bg-white min-h-[500px]">
-                    <div className="flex flex-col md:flex-row justify-between items-center gap-4 bg-gray-50 p-4 rounded-lg border border-gray-200 print:hidden">
-                        <div className="flex items-center gap-2 w-full md:w-auto">
-                            <Filter size={20} className="text-gray-500 shrink-0" />
-                            <span className="text-sm font-bold text-gray-700 whitespace-nowrap">Filter Report:</span>
-                            <select className="flex-1 md:flex-none border rounded p-2 text-sm outline-none focus:ring-2 focus:ring-indigo-500 w-full md:w-48" value={reportFilter} onChange={(e) => setReportFilter(e.target.value)}>
-                                <option value="All">All Inventory</option>
-                                <option value="Active">Active Only</option>
-                                <option value="Defective">Defective Only</option>
-                                <option value="Pullout">Pullout / Disposal</option>
-                            </select>
+                <div className="p-4 lg:p-8 space-y-6 animate-in fade-in bg-white min-h-[500px]">
+                   {/* Configuration Panel */}
+                   <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm print:hidden space-y-6">
+                        <div className="flex justify-between items-center border-b pb-4">
+                            <h3 className="font-bold text-lg text-gray-800 flex items-center gap-2"><FileText size={20}/> Report Configuration</h3>
+                            <Button onClick={handleDownloadPDF}><Download size={16} className="mr-2"/> Download PDF</Button>
                         </div>
-                        <Button size="lg" onClick={handleDownloadPDF} className="w-full md:w-auto shadow-md bg-indigo-600 hover:bg-indigo-700 text-white justify-center"><Download className="mr-2" size={18} /> Generate PDF</Button>
-                    </div>
-                    <div className="overflow-x-auto border rounded-lg shadow-sm">
-                        <div id="report-content" className="print-preview min-w-[800px] max-w-5xl mx-auto text-left bg-white p-8">
-                            <div className="flex justify-between items-end border-b-2 border-gray-900 pb-4 mb-8 break-inside-avoid">
-                                <div><h1 className="text-4xl font-black text-gray-900 tracking-tight uppercase">Inventory Report</h1><p className="text-gray-500 font-medium mt-1 uppercase tracking-widest text-xs">Filter: {reportFilter} • Generated: {new Date().toLocaleDateString('en-US', { timeZone: 'Asia/Manila' })}</p></div>
-                                <div className="text-right"><h2 className="text-xl font-bold text-gray-400">IMS</h2><p className="text-xs text-gray-400">Operation Department</p></div>
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div>
+                                <label className="block text-xs font-bold text-gray-500 uppercase mb-2">Item Filter</label>
+                                <select className="w-full border border-gray-300 rounded p-2 text-sm outline-none focus:ring-2 focus:ring-indigo-500" value={filter} onChange={e => setFilter(e.target.value)}>
+                                    <option value="All">All Items</option>
+                                    <option value="Active">Active Only</option>
+                                    <option value="Defective">Defective Only</option>
+                                    <option value="Pullout">Pullout / Disposal</option>
+                                </select>
                             </div>
-                            <div className="grid grid-cols-4 gap-4 mb-4 break-inside-avoid">
-                                <div className="p-4 bg-gray-50 border rounded-lg text-center"><p className="text-xs font-bold text-gray-500 uppercase">Total Assets</p><p className="text-2xl font-black text-gray-900">{stats.total}</p></div>
-                                <div className="p-4 bg-green-50 border border-green-100 rounded-lg text-center"><p className="text-xs font-bold text-green-700 uppercase">Active</p><p className="text-2xl font-black text-green-700">{stats.active}</p></div>
-                                <div className="p-4 bg-red-50 border border-red-100 rounded-lg text-center"><p className="text-xs font-bold text-red-700 uppercase">Defective</p><p className="text-2xl font-black text-red-700">{stats.defective}</p></div>
-                                <div className="p-4 bg-orange-50 border border-orange-100 rounded-lg text-center"><p className="text-xs font-bold text-orange-700 uppercase">Disposal</p><p className="text-2xl font-black text-orange-700">{stats.pullout}</p></div>
-                            </div>
-                            <div className="grid grid-cols-4 gap-4 mb-8 break-inside-avoid">
-                                <div className="p-3 bg-gray-50 border rounded text-center"><p className="text-[10px] font-bold text-gray-400 uppercase">Total Rooms</p><p className="text-xl font-bold text-gray-800">{stats.totalRooms}</p></div>
-                                <div className="p-3 bg-blue-50 border border-blue-100 rounded text-center"><p className="text-[10px] font-bold text-blue-400 uppercase">Occupied</p><p className="text-xl font-bold text-blue-700">{stats.occupiedRooms}</p></div>
-                                <div className="p-3 bg-green-50 border border-green-100 rounded text-center"><p className="text-[10px] font-bold text-green-400 uppercase">Vacant</p><p className="text-xl font-bold text-green-700">{stats.vacantRooms}</p></div>
-                                <div className="p-3 bg-yellow-50 border border-yellow-100 rounded text-center"><p className="text-[10px] font-bold text-yellow-500 uppercase">Maintenance</p><p className="text-xl font-bold text-yellow-700">{stats.maintenanceRooms}</p></div>
-                            </div>
-                            <div className="mb-10 break-inside-avoid">
-                                <h3 className="font-bold text-white bg-gray-900 px-4 py-2 uppercase tracking-wider text-sm rounded-t-lg">A. Storage Inventory</h3>
-                                <div className="border border-t-0 rounded-b-lg p-4 bg-white">
-                                    {Object.keys(storageGrouped).length === 0 ? <p className="text-gray-400 text-sm italic">No items.</p> : Object.keys(storageGrouped).map(cat => (
-                                        <div key={cat} className="mb-6 last:mb-0 break-inside-avoid"><h4 className="font-bold text-indigo-700 border-b border-indigo-100 pb-1 mb-2 text-sm">{cat}</h4>
-                                            {Object.keys(storageGrouped[cat]).map(sub => {
-                                                const items = storageGrouped[cat][sub];
-                                                const counts = items.reduce((acc, i) => { acc[i.name] = (acc[i.name] || 0) + 1; return acc; }, {});
-                                                return (
-                                                    <div key={sub} className="mb-4 ml-4 break-inside-avoid"><h5 className="font-semibold text-xs text-gray-600 uppercase tracking-wide mb-2">{sub}</h5>
-                                                        <table className="w-full text-xs text-left"><thead><tr className="bg-gray-50 text-gray-500 border-b"><th className="py-1 px-2">Item Name</th><th className="py-1 px-2 text-right">Quantity</th></tr></thead><tbody>{Object.entries(counts).map(([name, count]) => <tr key={name} className="border-b border-gray-100 break-inside-avoid"><td className="py-1 px-2">{name}</td><td className="py-1 px-2 text-right font-mono font-bold">{count}</td></tr>)}</tbody></table>
-                                                    </div>
-                                                );
-                                            })}
-                                        </div>
-                                    ))}
+                            <div>
+                                <label className="block text-xs font-bold text-gray-500 uppercase mb-2">Included Sections</label>
+                                <div className="grid grid-cols-2 gap-3">
+                                    <label className="flex items-center gap-2 text-sm cursor-pointer select-none">
+                                        <input type="checkbox" checked={sections.overview} onChange={() => toggleSection('overview')} className="rounded text-indigo-600 focus:ring-indigo-500"/> Overview Stats
+                                    </label>
+                                    <label className="flex items-center gap-2 text-sm cursor-pointer select-none">
+                                        <input type="checkbox" checked={sections.storage} onChange={() => toggleSection('storage')} className="rounded text-indigo-600 focus:ring-indigo-500"/> Storage Inventory
+                                    </label>
+                                    <label className="flex items-center gap-2 text-sm cursor-pointer select-none">
+                                        <input type="checkbox" checked={sections.boxes} onChange={() => toggleSection('boxes')} className="rounded text-indigo-600 focus:ring-indigo-500"/> Box Allocations
+                                    </label>
+                                    <label className="flex items-center gap-2 text-sm cursor-pointer select-none">
+                                        <input type="checkbox" checked={sections.rooms} onChange={() => toggleSection('rooms')} className="rounded text-indigo-600 focus:ring-indigo-500"/> Room Allocations
+                                    </label>
                                 </div>
                             </div>
-                            <div className="mb-10 break-inside-avoid"><h3 className="font-bold text-white bg-gray-900 px-4 py-2 uppercase tracking-wider text-sm rounded-t-lg">B. Room Allocations</h3><div className="border border-t-0 rounded-b-lg p-4 bg-white">{Object.keys(roomGrouped).length === 0 ? <p className="text-gray-400 text-sm italic">No items.</p> : Object.keys(roomGrouped).map(floor => (<div key={floor} className="mb-6 last:mb-0 break-inside-avoid"><h4 className="font-bold text-indigo-700 border-b border-indigo-100 pb-1 mb-2 text-sm">{floor}</h4><div className="grid grid-cols-2 gap-4">{roomGrouped[floor].map(({ room, items }) => (<div key={room.id} className="border rounded p-3 break-inside-avoid"><div className="flex justify-between items-center mb-2 border-b pb-1"><span className="font-bold text-sm">{room.name}</span><span className="text-[10px] text-gray-400 font-mono">{room.id}</span></div><ul className="text-xs space-y-1">{items.map(item => (<li key={item.id} className="flex justify-between"><span>{item.name}</span><span className="text-gray-500">{item.id}</span></li>))}</ul></div>))}</div></div>))}</div></div>
-                            <div className="mb-10 break-inside-avoid"><h3 className="font-bold text-white bg-gray-900 px-4 py-2 uppercase tracking-wider text-sm rounded-t-lg">C. Box Allocations</h3><div className="border border-t-0 rounded-b-lg p-4 bg-white">{boxGrouped.length === 0 ? <p className="text-gray-400 text-sm italic">No items.</p> : <div className="grid grid-cols-3 gap-4">{boxGrouped.map(({ box, items }) => (<div key={box.id} className="border rounded p-3 break-inside-avoid"><div className="flex justify-between items-center mb-2 border-b pb-1 bg-orange-50 -m-3 p-3 rounded-t"><span className="font-bold text-sm text-orange-900">{box.name}</span><span className="text-[10px] text-orange-400 font-mono">{box.id}</span></div><ul className="text-xs space-y-1 mt-3">{items.map(item => (<li key={item.id} className="flex justify-between"><span>{item.name}</span><span className="font-mono text-gray-400">{item.id}</span></li>))}</ul></div>))}</div>}</div></div>
-                            <div className="mt-12 flex justify-between text-xs text-gray-400 pt-8 border-t border-gray-200 break-inside-avoid"><div><p className="mb-6">Prepared By: ___________________________</p><p>Date: ___________________________</p></div><div><p className="mb-6">Verified By: ___________________________</p><p>Date: ___________________________</p></div></div>
                         </div>
-                    </div>
+
+                        {sections.rooms && (
+                            <div className="border border-gray-200 rounded-lg p-4 bg-gray-50">
+                                <div className="flex justify-between items-center mb-2 cursor-pointer" onClick={() => setExpandRooms(!expandRooms)}>
+                                    <h4 className="font-bold text-sm text-gray-700">Specific Room Selection ({selectedRooms.size} selected)</h4>
+                                    {expandRooms ? <ChevronDown size={16}/> : <ChevronRight size={16}/>}
+                                </div>
+                                {expandRooms && (
+                                    <div className="space-y-4 mt-4 animate-in fade-in max-h-60 overflow-y-auto">
+                                        {data.floors.map(floor => (
+                                            <div key={floor.id} className="bg-white border border-gray-200 rounded p-3">
+                                                <div className="flex items-center gap-2 mb-2 pb-2 border-b border-gray-100">
+                                                    <input type="checkbox" 
+                                                        checked={floor.rooms.every(r => selectedRooms.has(r.id))}
+                                                        onChange={() => handleFloorToggle(floor)}
+                                                        className="rounded text-indigo-600"
+                                                    />
+                                                    <span className="font-bold text-sm">{floor.name}</span>
+                                                </div>
+                                                <div className="grid grid-cols-2 md:grid-cols-3 gap-2 pl-6">
+                                                    {floor.rooms.map(room => (
+                                                        <label key={room.id} className="flex items-center gap-2 text-xs cursor-pointer hover:bg-gray-50 rounded p-1">
+                                                            <input type="checkbox" checked={selectedRooms.has(room.id)} onChange={() => handleRoomToggle(room.id)} className="rounded text-indigo-600"/>
+                                                            <span className="truncate">{room.name}</span>
+                                                        </label>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        )}
+                   </div>
+
+                   {/* Preview / Print Area */}
+                   <div className="overflow-x-auto border border-gray-200 rounded-lg shadow-sm bg-gray-500/10 p-4">
+                        <div id="report-content" className="bg-white mx-auto shadow-xl print:shadow-none text-left relative" style={{ width: '210mm', minHeight: '297mm', padding: '15mm' }}>
+                            {/* Header */}
+                            <div className="flex justify-between items-end border-b-2 border-gray-900 pb-4 mb-8 break-inside-avoid">
+                                <div>
+                                    <h1 className="text-3xl font-black text-gray-900 tracking-tight uppercase">Inventory Report</h1>
+                                    <p className="text-gray-500 font-medium mt-1 uppercase tracking-widest text-xs">Filter: {filter} • {new Date().toLocaleDateString()}</p>
+                                </div>
+                                <div className="text-right">
+                                    <h2 className="text-xl font-bold text-gray-400">IMS</h2>
+                                    <p className="text-xs text-gray-400">Operation Department</p>
+                                </div>
+                            </div>
+
+                            {/* Stats */}
+                            {sections.overview && (
+                                <div className="space-y-4 mb-8 break-inside-avoid">
+                                    {/* Inventory Stats */}
+                                    <div className="grid grid-cols-4 gap-4">
+                                        <div className="p-3 bg-gray-50 border border-gray-200 rounded text-center"><p className="text-[10px] font-bold text-gray-500 uppercase">Total Items</p><p className="text-xl font-black text-gray-900">{stats.total}</p></div>
+                                        <div className="p-3 bg-green-50 border border-green-100 rounded text-center"><p className="text-[10px] font-bold text-green-700 uppercase">Active</p><p className="text-xl font-black text-green-700">{stats.active}</p></div>
+                                        <div className="p-3 bg-red-50 border border-red-100 rounded text-center"><p className="text-[10px] font-bold text-red-700 uppercase">Defective</p><p className="text-xl font-black text-red-700">{stats.defective}</p></div>
+                                        <div className="p-3 bg-orange-50 border border-orange-100 rounded text-center"><p className="text-[10px] font-bold text-orange-700 uppercase">Disposal</p><p className="text-xl font-black text-orange-700">{stats.pullout}</p></div>
+                                    </div>
+
+                                    {/* Room Stats */}
+                                    <div className="grid grid-cols-4 gap-4">
+                                        <div className="p-3 bg-gray-50 border border-gray-200 rounded text-center"><p className="text-[10px] font-bold text-gray-500 uppercase">Total Rooms</p><p className="text-xl font-black text-gray-900">{stats.totalRooms}</p></div>
+                                        <div className="p-3 bg-blue-50 border border-blue-100 rounded text-center"><p className="text-[10px] font-bold text-blue-700 uppercase">Occupied</p><p className="text-xl font-black text-blue-700">{stats.occupiedRooms}</p></div>
+                                        <div className="p-3 bg-emerald-50 border border-emerald-100 rounded text-center"><p className="text-[10px] font-bold text-emerald-700 uppercase">Vacant</p><p className="text-xl font-black text-emerald-700">{stats.vacantRooms}</p></div>
+                                        <div className="p-3 bg-yellow-50 border border-yellow-100 rounded text-center"><p className="text-[10px] font-bold text-yellow-700 uppercase">Maintenance</p><p className="text-xl font-black text-yellow-700">{stats.maintenanceRooms}</p></div>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Storage */}
+                            {sections.storage && (
+                                <div className="mb-8 break-inside-avoid">
+                                    <h3 className="font-bold text-white bg-gray-900 px-4 py-1.5 uppercase tracking-wider text-xs rounded-t-lg">Storage Inventory</h3>
+                                    <div className="border border-gray-200 border-t-0 rounded-b-lg p-4 bg-white">
+                                        {Object.keys(storageGrouped).length === 0 ? <p className="text-gray-400 text-xs italic">No items found.</p> : Object.keys(storageGrouped).map(cat => (
+                                            <div key={cat} className="mb-4 last:mb-0 break-inside-avoid">
+                                                <h4 className="font-bold text-indigo-700 border-b border-indigo-100 pb-1 mb-2 text-xs">{cat}</h4>
+                                                {Object.keys(storageGrouped[cat]).map(sub => {
+                                                    const items = storageGrouped[cat][sub];
+                                                    const counts = items.reduce((acc, i) => { acc[i.name] = (acc[i.name] || 0) + 1; return acc; }, {});
+                                                    return (
+                                                        <div key={sub} className="mb-2 ml-2 break-inside-avoid">
+                                                            <div className="flex justify-between items-end mb-1">
+                                                                <h5 className="font-semibold text-[10px] text-gray-600 uppercase tracking-wide">{sub}</h5>
+                                                            </div>
+                                                            <table className="w-full text-[10px] text-left"><tbody>{Object.entries(counts).map(([name, count]) => <tr key={name} className="border-b border-gray-50"><td className="py-0.5 px-2">{name}</td><td className="py-0.5 px-2 text-right font-mono font-bold">{count}</td></tr>)}</tbody></table>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Rooms */}
+                            {sections.rooms && (
+                                <div className="mb-8 break-inside-avoid">
+                                    <h3 className="font-bold text-white bg-gray-900 px-4 py-1.5 uppercase tracking-wider text-xs rounded-t-lg">Room Allocations</h3>
+                                    <div className="border border-gray-200 border-t-0 rounded-b-lg p-4 bg-white">
+                                        {Object.keys(roomGrouped).length === 0 ? <p className="text-gray-400 text-xs italic">No items or no rooms selected.</p> : Object.keys(roomGrouped).map(floor => (
+                                            <div key={floor} className="mb-6 last:mb-0 break-inside-avoid">
+                                                <h4 className="font-bold text-indigo-700 border-b border-indigo-100 pb-1 mb-2 text-xs">{floor}</h4>
+                                                <div className="grid grid-cols-2 gap-3">
+                                                    {roomGrouped[floor].map(({ room, groupedItems }) => (
+                                                        <div key={room.id} className="border border-gray-200 rounded p-2 break-inside-avoid">
+                                                            <div className="flex justify-between items-center mb-1 border-b border-gray-100 pb-1">
+                                                                <span className="font-bold text-xs">{room.name}</span>
+                                                                <span className="text-[9px] text-gray-400 font-mono">{room.id}</span>
+                                                            </div>
+                                                            {Object.keys(groupedItems).sort().map(cat => (
+                                                                <div key={cat} className="mt-1">
+                                                                    <div className="text-[9px] font-bold text-gray-600 bg-gray-50 px-1 rounded-sm mb-0.5">{cat}</div>
+                                                                    {Object.keys(groupedItems[cat]).sort().map(sub => (
+                                                                        <div key={sub} className="mb-1 pl-1">
+                                                                            <div className="text-[8px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5 pl-1">{sub}</div>
+                                                                            <ul className="text-[9px] space-y-0.5 pl-1 border-l-2 border-gray-100 ml-0.5">
+                                                                                {groupedItems[cat][sub].map(item => (
+                                                                                    <li key={item.id} className="flex justify-between items-baseline">
+                                                                                        <span className="truncate pr-1">{item.name}</span>
+                                                                                        <span className="text-[8px] text-gray-400 shrink-0 font-mono">{item.id}</span>
+                                                                                    </li>
+                                                                                ))}
+                                                                            </ul>
+                                                                        </div>
+                                                                    ))}
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Boxes */}
+                            {sections.boxes && (
+                                <div className="mb-8 break-inside-avoid">
+                                    <h3 className="font-bold text-white bg-gray-900 px-4 py-1.5 uppercase tracking-wider text-xs rounded-t-lg">Box Allocations</h3>
+                                    <div className="border border-gray-200 border-t-0 rounded-b-lg p-4 bg-white">
+                                        {boxGrouped.length === 0 ? <p className="text-gray-400 text-xs italic">No items found.</p> : <div className="grid grid-cols-3 gap-3">
+                                            {boxGrouped.map(({ box, items }) => (
+                                                <div key={box.id} className="border border-gray-200 rounded p-2 break-inside-avoid">
+                                                    <div className="flex justify-between items-center mb-1 border-b border-gray-100 pb-1 bg-orange-50 -m-2 p-2 rounded-t">
+                                                        <span className="font-bold text-xs text-orange-900">{box.name}</span>
+                                                        <span className="text-[9px] text-orange-400 font-mono">{box.id}</span>
+                                                    </div>
+                                                    <ul className="text-[10px] space-y-0.5 mt-2">
+                                                        {items.map(item => (
+                                                            <li key={item.id} className="flex justify-between">
+                                                                <span className="truncate pr-2">{item.name}</span>
+                                                                <span className="font-mono text-gray-400 shrink-0">{item.id}</span>
+                                                            </li>
+                                                        ))}
+                                                    </ul>
+                                                </div>
+                                            ))}
+                                        </div>}
+                                    </div>
+                                </div>
+                            )}
+                            
+                            {/* Footer */}
+                            <div className="mt-8 flex justify-between text-[10px] text-gray-400 pt-4 border-t border-gray-200 break-inside-avoid">
+                                <div><p className="mb-4">Prepared By: ___________________________</p></div>
+                                <div><p className="mb-4">Verified By: ___________________________</p></div>
+                            </div>
+                        </div>
+                   </div>
                 </div>
-            );
+            )
         };
 
         const LoginView = ({ onLogin, users }) => {
@@ -1149,8 +1360,8 @@
             };
 
             return (
-              <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-                <div className="max-w-md w-full bg-white rounded-xl shadow-lg p-8">
+              <div className="min-h-screen bg-white flex items-center justify-center p-4">
+                <div className="max-w-md w-full bg-white rounded-xl shadow-lg p-8 border border-gray-100">
                   <div className="text-center mb-8">
                     <div className="bg-indigo-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
                       <Package className="w-8 h-8 text-indigo-600" />
@@ -1779,7 +1990,7 @@
 
                   {settingsTab === 'accounts' && (<div className="space-y-8"><div className="flex justify-between items-center"><h3 className="font-bold text-lg">User Accounts</h3><Button onClick={() => { setEditingUser(null); setShowUserModal(true); }}><Plus size={16}/> Add New User</Button></div>{[ROLES.SUPERVISOR, ROLES.LEAD, ROLES.TRAINER, ROLES.OPERATOR].map((role) => { const usersInRole = data.users.filter(u => u.role === role); if (usersInRole.length === 0) return null; return (<div key={role} className="space-y-3 animate-in fade-in"><h4 className="font-bold text-gray-500 text-xs uppercase tracking-wider border-b border-gray-200 pb-1 mb-2">{role}s</h4><div className="grid grid-cols-1 md:grid-cols-2 gap-4">{usersInRole.map(u => (<UserCard key={u.id} user={u} onEdit={() => { setEditingUser(u); setShowUserModal(true); }} onDelete={handleDeleteUser}/>))}</div></div>); })}{showUserModal && (<UserModal userToEdit={editingUser} onSave={handleSaveUser} onClose={() => setShowUserModal(false)} dialogs={dialogs}/>)}</div>)}
 
-                  {settingsTab === 'report' && (<Card><ReportGenerator data={data} /></Card>)}
+                  {settingsTab === 'report' && (<Card><ReportGenerator data={data} dialogs={dialogs} /></Card>)}
 
                   {settingsTab === 'backup' && (
                         <div className="space-y-6">
@@ -2030,7 +2241,7 @@
           );
 
           return (
-            <div className="min-h-screen bg-gray-100 font-sans flex text-gray-800 flex-col lg:flex-row">
+            <div className="min-h-screen bg-white font-sans flex text-gray-900 flex-col lg:flex-row">
               
               {/* Mobile Header */}
               <div className="lg:hidden flex items-center justify-between bg-white border-b border-gray-200 p-4 sticky top-0 z-20 print-hidden shadow-sm">
