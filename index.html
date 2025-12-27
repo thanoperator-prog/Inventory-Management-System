@@ -1114,7 +1114,7 @@
                 const element = document.getElementById('report-content');
                 if (window.html2pdf) {
                     const opt = { 
-                        margin: 10, 
+                        margin: 10, // Standard margins (10mm ~ 0.4in)
                         filename: `IMS_Report_${new Date().toISOString().split('T')[0]}.pdf`, 
                         image: { type: 'jpeg', quality: 0.98 }, 
                         html2canvas: { scale: 2, useCORS: true }, 
@@ -1203,139 +1203,143 @@
 
                    {/* Preview / Print Area */}
                    <div className="overflow-x-auto border border-gray-200 rounded-lg shadow-sm bg-gray-500/10 p-4">
-                        <div id="report-content" className="bg-white mx-auto shadow-xl print:shadow-none text-left relative" style={{ width: '210mm', minHeight: '297mm', padding: '15mm' }}>
-                            {/* Header */}
-                            <div className="flex justify-between items-end border-b-2 border-gray-900 pb-4 mb-8 break-inside-avoid">
-                                <div>
-                                    <h1 className="text-3xl font-black text-gray-900 tracking-tight uppercase">Inventory Report</h1>
-                                    <p className="text-gray-500 font-medium mt-1 uppercase tracking-widest text-xs">Filter: {filter} • {new Date().toLocaleDateString()}</p>
-                                </div>
-                                <div className="text-right">
-                                    <h2 className="text-xl font-bold text-gray-400">IMS</h2>
-                                    <p className="text-xs text-gray-400">Operation Department</p>
-                                </div>
-                            </div>
-
-                            {/* Stats */}
-                            {sections.overview && (
-                                <div className="space-y-4 mb-8 break-inside-avoid">
-                                    {/* Inventory Stats */}
-                                    <div className="grid grid-cols-4 gap-4">
-                                        <div className="p-3 bg-gray-50 border border-gray-200 rounded text-center"><p className="text-[10px] font-bold text-gray-500 uppercase">Total Items</p><p className="text-xl font-black text-gray-900">{stats.total}</p></div>
-                                        <div className="p-3 bg-green-50 border border-green-100 rounded text-center"><p className="text-[10px] font-bold text-green-700 uppercase">Active</p><p className="text-xl font-black text-green-700">{stats.active}</p></div>
-                                        <div className="p-3 bg-red-50 border border-red-100 rounded text-center"><p className="text-[10px] font-bold text-red-700 uppercase">Defective</p><p className="text-xl font-black text-red-700">{stats.defective}</p></div>
-                                        <div className="p-3 bg-orange-50 border border-orange-100 rounded text-center"><p className="text-[10px] font-bold text-orange-700 uppercase">Disposal</p><p className="text-xl font-black text-orange-700">{stats.pullout}</p></div>
+                        {/* Wrapper for Preview Visualization (A4 Constraints) */}
+                        <div className="mx-auto shadow-xl print:shadow-none bg-white relative" style={{ width: '210mm', minHeight: '297mm' }}>
+                            {/* Actual Printable Content (Fluid width to allow PDF scaling without cuts) */}
+                            <div id="report-content" className="bg-white text-left w-full p-8">
+                                {/* Header */}
+                                <div className="flex justify-between items-end border-b-2 border-gray-900 pb-4 mb-8 break-inside-avoid">
+                                    <div>
+                                        <h1 className="text-3xl font-black text-gray-900 tracking-tight uppercase">Inventory Report</h1>
+                                        <p className="text-gray-500 font-medium mt-1 uppercase tracking-widest text-xs">Filter: {filter} • {new Date().toLocaleDateString()}</p>
                                     </div>
-
-                                    {/* Room Stats */}
-                                    <div className="grid grid-cols-4 gap-4">
-                                        <div className="p-3 bg-gray-50 border border-gray-200 rounded text-center"><p className="text-[10px] font-bold text-gray-500 uppercase">Total Rooms</p><p className="text-xl font-black text-gray-900">{stats.totalRooms}</p></div>
-                                        <div className="p-3 bg-blue-50 border border-blue-100 rounded text-center"><p className="text-[10px] font-bold text-blue-700 uppercase">Occupied</p><p className="text-xl font-black text-blue-700">{stats.occupiedRooms}</p></div>
-                                        <div className="p-3 bg-emerald-50 border border-emerald-100 rounded text-center"><p className="text-[10px] font-bold text-emerald-700 uppercase">Vacant</p><p className="text-xl font-black text-emerald-700">{stats.vacantRooms}</p></div>
-                                        <div className="p-3 bg-yellow-50 border border-yellow-100 rounded text-center"><p className="text-[10px] font-bold text-yellow-700 uppercase">Maintenance</p><p className="text-xl font-black text-yellow-700">{stats.maintenanceRooms}</p></div>
+                                    <div className="text-right">
+                                        <h2 className="text-xl font-bold text-gray-400">IMS</h2>
+                                        <p className="text-xs text-gray-400">Operation Department</p>
                                     </div>
                                 </div>
-                            )}
 
-                            {/* Storage */}
-                            {sections.storage && (
-                                <div className="mb-8 break-inside-avoid">
-                                    <h3 className="font-bold text-white bg-gray-900 px-4 py-1.5 uppercase tracking-wider text-xs rounded-t-lg">Storage Inventory</h3>
-                                    <div className="border border-gray-200 border-t-0 rounded-b-lg p-4 bg-white">
-                                        {Object.keys(storageGrouped).length === 0 ? <p className="text-gray-400 text-xs italic">No items found.</p> : Object.keys(storageGrouped).map(cat => (
-                                            <div key={cat} className="mb-4 last:mb-0 break-inside-avoid">
-                                                <h4 className="font-bold text-indigo-700 border-b border-indigo-100 pb-1 mb-2 text-xs">{cat}</h4>
-                                                {Object.keys(storageGrouped[cat]).map(sub => {
-                                                    const items = storageGrouped[cat][sub];
-                                                    const counts = items.reduce((acc, i) => { acc[i.name] = (acc[i.name] || 0) + 1; return acc; }, {});
-                                                    return (
-                                                        <div key={sub} className="mb-2 ml-2 break-inside-avoid">
-                                                            <div className="flex justify-between items-end mb-1">
-                                                                <h5 className="font-semibold text-[10px] text-gray-600 uppercase tracking-wide">{sub}</h5>
-                                                            </div>
-                                                            <table className="w-full text-[10px] text-left"><tbody>{Object.entries(counts).map(([name, count]) => <tr key={name} className="border-b border-gray-50"><td className="py-0.5 px-2">{name}</td><td className="py-0.5 px-2 text-right font-mono font-bold">{count}</td></tr>)}</tbody></table>
-                                                        </div>
-                                                    );
-                                                })}
-                                            </div>
-                                        ))}
+                                {/* Stats */}
+                                {sections.overview && (
+                                    <div className="space-y-4 mb-8 break-inside-avoid">
+                                        {/* Inventory Stats */}
+                                        <div className="grid grid-cols-4 gap-4">
+                                            <div className="p-3 bg-gray-50 border border-gray-200 rounded text-center"><p className="text-[10px] font-bold text-gray-500 uppercase">Total Items</p><p className="text-xl font-black text-gray-900">{stats.total}</p></div>
+                                            <div className="p-3 bg-green-50 border border-green-100 rounded text-center"><p className="text-[10px] font-bold text-green-700 uppercase">Active</p><p className="text-xl font-black text-green-700">{stats.active}</p></div>
+                                            <div className="p-3 bg-red-50 border border-red-100 rounded text-center"><p className="text-[10px] font-bold text-red-700 uppercase">Defective</p><p className="text-xl font-black text-red-700">{stats.defective}</p></div>
+                                            <div className="p-3 bg-orange-50 border border-orange-100 rounded text-center"><p className="text-[10px] font-bold text-orange-700 uppercase">Disposal</p><p className="text-xl font-black text-orange-700">{stats.pullout}</p></div>
+                                        </div>
+
+                                        {/* Room Stats */}
+                                        <div className="grid grid-cols-4 gap-4">
+                                            <div className="p-3 bg-gray-50 border border-gray-200 rounded text-center"><p className="text-[10px] font-bold text-gray-500 uppercase">Total Rooms</p><p className="text-xl font-black text-gray-900">{stats.totalRooms}</p></div>
+                                            <div className="p-3 bg-blue-50 border border-blue-100 rounded text-center"><p className="text-[10px] font-bold text-blue-700 uppercase">Occupied</p><p className="text-xl font-black text-blue-700">{stats.occupiedRooms}</p></div>
+                                            <div className="p-3 bg-emerald-50 border border-emerald-100 rounded text-center"><p className="text-[10px] font-bold text-emerald-700 uppercase">Vacant</p><p className="text-xl font-black text-emerald-700">{stats.vacantRooms}</p></div>
+                                            <div className="p-3 bg-yellow-50 border border-yellow-100 rounded text-center"><p className="text-[10px] font-bold text-yellow-700 uppercase">Maintenance</p><p className="text-xl font-black text-yellow-700">{stats.maintenanceRooms}</p></div>
+                                        </div>
                                     </div>
-                                </div>
-                            )}
+                                )}
 
-                            {/* Rooms */}
-                            {sections.rooms && (
-                                <div className="mb-8 break-inside-avoid">
-                                    <h3 className="font-bold text-white bg-gray-900 px-4 py-1.5 uppercase tracking-wider text-xs rounded-t-lg">Room Allocations</h3>
-                                    <div className="border border-gray-200 border-t-0 rounded-b-lg p-4 bg-white">
-                                        {Object.keys(roomGrouped).length === 0 ? <p className="text-gray-400 text-xs italic">No items or no rooms selected.</p> : Object.keys(roomGrouped).map(floor => (
-                                            <div key={floor} className="mb-6 last:mb-0 break-inside-avoid">
-                                                <h4 className="font-bold text-indigo-700 border-b border-indigo-100 pb-1 mb-2 text-xs">{floor}</h4>
-                                                <div className="grid grid-cols-2 gap-3">
-                                                    {roomGrouped[floor].map(({ room, groupedItems }) => (
-                                                        <div key={room.id} className="border border-gray-200 rounded p-2 break-inside-avoid">
-                                                            <div className="flex justify-between items-center mb-1 border-b border-gray-100 pb-1">
-                                                                <span className="font-bold text-xs">{room.name}</span>
-                                                                <span className="text-[9px] text-gray-400 font-mono">{room.id}</span>
-                                                            </div>
-                                                            {Object.keys(groupedItems).sort().map(cat => (
-                                                                <div key={cat} className="mt-1">
-                                                                    <div className="text-[9px] font-bold text-gray-600 bg-gray-50 px-1 rounded-sm mb-0.5">{cat}</div>
-                                                                    {Object.keys(groupedItems[cat]).sort().map(sub => (
-                                                                        <div key={sub} className="mb-1 pl-1">
-                                                                            <div className="text-[8px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5 pl-1">{sub}</div>
-                                                                            <ul className="text-[9px] space-y-0.5 pl-1 border-l-2 border-gray-100 ml-0.5">
-                                                                                {groupedItems[cat][sub].map(item => (
-                                                                                    <li key={item.id} className="flex justify-between items-baseline">
-                                                                                        <span className="truncate pr-1">{item.name}</span>
-                                                                                        <span className="text-[8px] text-gray-400 shrink-0 font-mono">{item.id}</span>
-                                                                                    </li>
-                                                                                ))}
-                                                                            </ul>
-                                                                        </div>
-                                                                    ))}
+                                {/* Storage */}
+                                {sections.storage && (
+                                    <div className="mb-8 break-inside-avoid">
+                                        <h3 className="font-bold text-white bg-gray-900 px-4 py-1.5 uppercase tracking-wider text-xs rounded-t-lg">Storage Inventory</h3>
+                                        <div className="border border-gray-200 border-t-0 rounded-b-lg p-4 bg-white">
+                                            {Object.keys(storageGrouped).length === 0 ? <p className="text-gray-400 text-xs italic">No items found.</p> : Object.keys(storageGrouped).map(cat => (
+                                                <div key={cat} className="mb-4 last:mb-0 break-inside-avoid">
+                                                    <h4 className="font-bold text-indigo-700 border-b border-indigo-100 pb-1 mb-2 text-xs">{cat}</h4>
+                                                    {Object.keys(storageGrouped[cat]).map(sub => {
+                                                        const items = storageGrouped[cat][sub];
+                                                        const counts = items.reduce((acc, i) => { acc[i.name] = (acc[i.name] || 0) + 1; return acc; }, {});
+                                                        return (
+                                                            <div key={sub} className="mb-2 ml-2 break-inside-avoid">
+                                                                <div className="flex justify-between items-end mb-1">
+                                                                    <h5 className="font-semibold text-[10px] text-gray-600 uppercase tracking-wide">{sub}</h5>
                                                                 </div>
-                                                            ))}
-                                                        </div>
-                                                    ))}
-                                                </div>
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
-                            )}
-
-                            {/* Boxes */}
-                            {sections.boxes && (
-                                <div className="mb-8 break-inside-avoid">
-                                    <h3 className="font-bold text-white bg-gray-900 px-4 py-1.5 uppercase tracking-wider text-xs rounded-t-lg">Box Allocations</h3>
-                                    <div className="border border-gray-200 border-t-0 rounded-b-lg p-4 bg-white">
-                                        {boxGrouped.length === 0 ? <p className="text-gray-400 text-xs italic">No items found.</p> : <div className="grid grid-cols-3 gap-3">
-                                            {boxGrouped.map(({ box, items }) => (
-                                                <div key={box.id} className="border border-gray-200 rounded p-2 break-inside-avoid">
-                                                    <div className="flex justify-between items-center mb-1 border-b border-gray-100 pb-1 bg-orange-50 -m-2 p-2 rounded-t">
-                                                        <span className="font-bold text-xs text-orange-900">{box.name}</span>
-                                                        <span className="text-[9px] text-orange-400 font-mono">{box.id}</span>
-                                                    </div>
-                                                    <ul className="text-[10px] space-y-0.5 mt-2">
-                                                        {items.map(item => (
-                                                            <li key={item.id} className="flex justify-between">
-                                                                <span className="truncate pr-2">{item.name}</span>
-                                                                <span className="font-mono text-gray-400 shrink-0">{item.id}</span>
-                                                            </li>
-                                                        ))}
-                                                    </ul>
+                                                                <table className="w-full text-[10px] text-left"><tbody>{Object.entries(counts).map(([name, count]) => <tr key={name} className="border-b border-gray-50"><td className="py-0.5 px-2">{name}</td><td className="py-0.5 px-2 text-right font-mono font-bold">{count}</td></tr>)}</tbody></table>
+                                                            </div>
+                                                        );
+                                                    })}
                                                 </div>
                                             ))}
-                                        </div>}
+                                        </div>
                                     </div>
+                                )}
+
+                                {/* Rooms */}
+                                {sections.rooms && (
+                                    <div className="mb-8 break-inside-avoid">
+                                        <h3 className="font-bold text-white bg-gray-900 px-4 py-1.5 uppercase tracking-wider text-xs rounded-t-lg">Room Allocations</h3>
+                                        <div className="border border-gray-200 border-t-0 rounded-b-lg p-4 bg-white">
+                                            {Object.keys(roomGrouped).length === 0 ? <p className="text-gray-400 text-xs italic">No items or no rooms selected.</p> : Object.keys(roomGrouped).map(floor => (
+                                                <div key={floor} className="mb-6 last:mb-0 break-inside-avoid">
+                                                    <h4 className="font-bold text-indigo-700 border-b border-indigo-100 pb-1 mb-2 text-xs">{floor}</h4>
+                                                    <div className="grid grid-cols-2 gap-3">
+                                                        {roomGrouped[floor].map(({ room, groupedItems }) => (
+                                                            <div key={room.id} className="border border-gray-200 rounded p-2 break-inside-avoid">
+                                                                <div className="flex justify-between items-center mb-1 border-b border-gray-100 pb-1">
+                                                                    <span className="font-bold text-xs">{room.name}</span>
+                                                                    <span className="text-[9px] text-gray-400 font-mono">{room.id}</span>
+                                                                </div>
+                                                                {Object.keys(groupedItems).sort().map(cat => (
+                                                                    <div key={cat} className="mt-1">
+                                                                        <div className="text-[9px] font-bold text-gray-600 bg-gray-50 px-1 rounded-sm mb-0.5">{cat}</div>
+                                                                        {Object.keys(groupedItems[cat]).sort().map(sub => (
+                                                                            <div key={sub} className="mb-1 pl-1">
+                                                                                <div className="text-[8px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5 pl-1">{sub}</div>
+                                                                                <ul className="text-[9px] space-y-0.5 pl-1 border-l-2 border-gray-100 ml-0.5">
+                                                                                    {groupedItems[cat][sub].map(item => (
+                                                                                        <li key={item.id} className="flex justify-between items-baseline">
+                                                                                            <span className="truncate pr-1">{item.name}</span>
+                                                                                            <span className="text-[8px] text-gray-400 shrink-0 font-mono">{item.id}</span>
+                                                                                        </li>
+                                                                                    ))}
+                                                                                </ul>
+                                                                            </div>
+                                                                        ))}
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Boxes */}
+                                {sections.boxes && (
+                                    <div className="mb-8 break-inside-avoid">
+                                        <h3 className="font-bold text-white bg-gray-900 px-4 py-1.5 uppercase tracking-wider text-xs rounded-t-lg">Box Allocations</h3>
+                                        <div className="border border-gray-200 border-t-0 rounded-b-lg p-4 bg-white">
+                                            {boxGrouped.length === 0 ? <p className="text-gray-400 text-xs italic">No items found.</p> : <div className="grid grid-cols-3 gap-3">
+                                                {boxGrouped.map(({ box, items }) => (
+                                                    <div key={box.id} className="border border-gray-200 rounded p-2 break-inside-avoid">
+                                                        <div className="flex justify-between items-center mb-1 border-b border-gray-100 pb-1 bg-orange-50 -m-2 p-2 rounded-t">
+                                                            <span className="font-bold text-xs text-orange-900">{box.name}</span>
+                                                            <span className="text-[9px] text-orange-400 font-mono">{box.id}</span>
+                                                        </div>
+                                                        <ul className="text-[10px] space-y-0.5 mt-2">
+                                                            {items.map(item => (
+                                                                <li key={item.id} className="flex justify-between">
+                                                                    <span className="truncate pr-2">{item.name}</span>
+                                                                    <span className="font-mono text-gray-400 shrink-0">{item.id}</span>
+                                                                </li>
+                                                            ))}
+                                                        </ul>
+                                                    </div>
+                                                ))}
+                                            </div>}
+                                        </div>
+                                    </div>
+                                )}
+                                
+                                {/* Footer */}
+                                <div className="mt-8 flex justify-between text-[10px] text-gray-400 pt-4 border-t border-gray-200 break-inside-avoid">
+                                    <div><p className="mb-4">Prepared By: ___________________________</p></div>
+                                    <div><p className="mb-4">Verified By: ___________________________</p></div>
                                 </div>
-                            )}
-                            
-                            {/* Footer */}
-                            <div className="mt-8 flex justify-between text-[10px] text-gray-400 pt-4 border-t border-gray-200 break-inside-avoid">
-                                <div><p className="mb-4">Prepared By: ___________________________</p></div>
-                                <div><p className="mb-4">Verified By: ___________________________</p></div>
                             </div>
                         </div>
                    </div>
@@ -1982,9 +1986,9 @@
               <div className="space-y-6">
                 <div className="border-b border-gray-200"><nav className="-mb-px flex space-x-8 overflow-x-auto">{['Storage', 'Floor', 'Boxes', 'Accounts', 'Report', 'Backup'].map((tab) => (<button key={tab} onClick={() => setSettingsTab(tab.toLowerCase())} className={`py-4 px-1 border-b-2 font-medium text-sm whitespace-nowrap ${settingsTab === tab.toLowerCase() ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}>{tab}</button>))}</nav></div>
                 <div className="mt-6">
-                  {settingsTab === 'storage' && (<div className="space-y-6"><Button onClick={handleAddCategory} className="w-full py-4 border-dashed border-2 bg-gray-50 hover:bg-white text-gray-500 hover:text-indigo-600"><Plus className="mr-2"/> Add New Category</Button>{data.categories.map((cat, idx) => (<Card key={cat.id} className="p-0 overflow-hidden"><div className="bg-gray-50 p-4 border-b border-gray-200 flex justify-between items-center">{editingCat === cat.id ? (<div className="flex gap-2"><input value={tempEditValue} onChange={e => setTempEditValue(e.target.value)} className="border rounded px-2 py-1" autoFocus /><Button size="sm" onClick={() => handleRenameCat(cat.id, tempEditValue)}><Save size={14} className="mr-1"/> Save</Button><Button size="sm" variant="secondary" onClick={() => setEditingCat(null)}>Cancel</Button></div>) : (<div className="flex items-center gap-3"><span className="font-bold text-lg">{cat.name}</span><div className="flex gap-1"><button onClick={() => { setEditingCat(cat.id); setTempEditValue(cat.name); }} className="text-gray-400 hover:text-indigo-600 p-1"><Edit size={16}/></button><button onClick={() => handleDeleteCat(cat.id, cat.name)} className="text-gray-400 hover:text-red-600 p-1"><Trash2 size={16}/></button></div></div>)}<div className="flex gap-2 text-xs"><span className="bg-white px-2 py-1 rounded border">{cat.subs.length} Sub-cats</span></div></div><div className="p-4 space-y-4">{cat.subs.map((sub, sIdx) => (<div key={`${sub}-${sIdx}`} className="border p-4 rounded-lg bg-white shadow-sm"><div className="flex justify-between items-center mb-4 border-b pb-3">{editingSub?.cat === cat.name && editingSub?.sub === sub ? (<div className="flex gap-2"><input value={tempSubValue} onChange={e => setTempSubValue(e.target.value)} className="border rounded px-2 py-1 text-xs" autoFocus /><Button size="sm" onClick={() => handleRenameSub(cat.name, sub, tempSubValue)}><Save size={14} className="mr-1"/> Save</Button><Button size="sm" variant="secondary" onClick={() => setEditingSub(null)}>Cancel</Button></div>) : (<div className="flex items-center gap-2"><span className="font-bold text-gray-700 text-lg">{sub}</span><button onClick={() => { setEditingSub({cat: cat.name, sub}); setTempSubValue(sub); }} className="text-gray-400 hover:text-indigo-600"><Edit size={14}/></button><button onClick={() => handleDeleteSub(cat.name, sub)} className="text-gray-400 hover:text-red-600"><Trash2 size={14}/></button></div>)}<Button size="sm" variant="secondary" onClick={() => setCreatingProduct({cat: cat.name, sub})}><Plus size={14} /> <span className="hidden md:inline">Create Product Card</span></Button></div>{creatingProduct?.cat === cat.name && creatingProduct?.sub === sub && (<div className="bg-blue-50 p-3 rounded mb-4 flex gap-2 items-center animate-in fade-in"><span className="text-xs font-bold text-blue-700 whitespace-nowrap">New Item Name:</span><input className="flex-1 border border-blue-200 rounded px-2 py-1 text-sm focus:outline-none focus:border-blue-500" placeholder="e.g. LED Panel 500W" autoFocus value={newProductName} onChange={e => setNewProductName(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleCreateProduct(cat.name, sub)} /><Button size="sm" onClick={() => handleCreateProduct(cat.name, sub)}>Create</Button><Button size="sm" variant="ghost" onClick={() => {setCreatingProduct(null); setNewProductName('');}}><X size={14}/></Button></div>)}<div className="space-y-2"><p className="text-[10px] font-bold text-gray-400 uppercase tracking-wide">Registered Items:</p><div className="grid grid-cols-1 md:grid-cols-2 gap-2">{uniqueProducts.filter(p => p.cat === cat.name && p.sub === sub).map((prod, pIdx) => (<div key={pIdx} className="flex justify-between items-center text-sm p-3 bg-gray-50 rounded border border-gray-100 hover:border-gray-300 transition-colors"><span className="font-medium text-gray-700">{prod.name}</span><div className="flex items-center gap-2"><span className="text-xs text-gray-500 bg-white px-2 py-0.5 rounded border">Qty: {data.items.filter(i => i.name === prod.name).length}</span><button title="Rename Product" onClick={() => { dialogs.showPrompt("Rename Product Type:", prod.name, (newName) => { handleRenameProduct(prod.name, newName, cat.name, sub); }); }} className="text-gray-400 hover:text-blue-600 p-1 hover:bg-blue-50 rounded"><Edit size={14}/></button><button title="Delete Product" onClick={() => handleDeleteProduct(prod.name, cat.name, sub)} className="text-gray-400 hover:text-red-600 p-1 hover:bg-red-50 rounded"><Trash2 size={14}/></button></div></div>))}</div>{uniqueProducts.filter(p => p.cat === cat.name && p.sub === sub).length === 0 && (<p className="text-xs text-gray-400 italic p-2 border border-dashed rounded text-center">No products registered yet.</p>)}</div></div>))}<Button size="sm" variant="ghost" className="w-full border border-dashed" onClick={() => handleAddSubCategory(cat.id)}><Plus size={14} className="mr-1"/> Add Sub-Category</Button></div></Card>))}</div>)}
+                  {settingsTab === 'storage' && (<div className="space-y-6"><Button variant="ghost" onClick={handleAddCategory} className="w-full py-4 border-dashed border-2 bg-white hover:bg-white text-gray-500 hover:text-indigo-600"><Plus className="mr-2"/> Add New Category</Button>{data.categories.map((cat, idx) => (<Card key={cat.id} className="p-0 overflow-hidden"><div className="bg-gray-50 p-4 border-b border-gray-200 flex justify-between items-center">{editingCat === cat.id ? (<div className="flex gap-2"><input value={tempEditValue} onChange={e => setTempEditValue(e.target.value)} className="border rounded px-2 py-1" autoFocus /><Button size="sm" onClick={() => handleRenameCat(cat.id, tempEditValue)}><Save size={14} className="mr-1"/> Save</Button><Button size="sm" variant="secondary" onClick={() => setEditingCat(null)}>Cancel</Button></div>) : (<div className="flex items-center gap-3"><span className="font-bold text-lg">{cat.name}</span><div className="flex gap-1"><button onClick={() => { setEditingCat(cat.id); setTempEditValue(cat.name); }} className="text-gray-400 hover:text-indigo-600 p-1"><Edit size={16}/></button><button onClick={() => handleDeleteCat(cat.id, cat.name)} className="text-gray-400 hover:text-red-600 p-1"><Trash2 size={16}/></button></div></div>)}<div className="flex gap-2 text-xs"><span className="bg-white px-2 py-1 rounded border">{cat.subs.length} Sub-cats</span></div></div><div className="p-4 space-y-4">{cat.subs.map((sub, sIdx) => (<div key={`${sub}-${sIdx}`} className="border p-4 rounded-lg bg-white shadow-sm"><div className="flex justify-between items-center mb-4 border-b pb-3">{editingSub?.cat === cat.name && editingSub?.sub === sub ? (<div className="flex gap-2"><input value={tempSubValue} onChange={e => setTempSubValue(e.target.value)} className="border rounded px-2 py-1 text-xs" autoFocus /><Button size="sm" onClick={() => handleRenameSub(cat.name, sub, tempSubValue)}><Save size={14} className="mr-1"/> Save</Button><Button size="sm" variant="secondary" onClick={() => setEditingSub(null)}>Cancel</Button></div>) : (<div className="flex items-center gap-2"><span className="font-bold text-gray-700 text-lg">{sub}</span><button onClick={() => { setEditingSub({cat: cat.name, sub}); setTempSubValue(sub); }} className="text-gray-400 hover:text-indigo-600"><Edit size={14}/></button><button onClick={() => handleDeleteSub(cat.name, sub)} className="text-gray-400 hover:text-red-600"><Trash2 size={14}/></button></div>)}<Button size="sm" variant="secondary" onClick={() => setCreatingProduct({cat: cat.name, sub})}><Plus size={14} /> <span className="hidden md:inline">Create Product Card</span></Button></div>{creatingProduct?.cat === cat.name && creatingProduct?.sub === sub && (<div className="bg-blue-50 p-3 rounded mb-4 flex gap-2 items-center animate-in fade-in"><span className="text-xs font-bold text-blue-700 whitespace-nowrap">New Item Name:</span><input className="flex-1 border border-blue-200 rounded px-2 py-1 text-sm focus:outline-none focus:border-blue-500" placeholder="e.g. LED Panel 500W" autoFocus value={newProductName} onChange={e => setNewProductName(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleCreateProduct(cat.name, sub)} /><Button size="sm" onClick={() => handleCreateProduct(cat.name, sub)}>Create</Button><Button size="sm" variant="ghost" onClick={() => {setCreatingProduct(null); setNewProductName('');}}><X size={14}/></Button></div>)}<div className="space-y-2"><p className="text-[10px] font-bold text-gray-400 uppercase tracking-wide">Registered Items:</p><div className="grid grid-cols-1 md:grid-cols-2 gap-2">{uniqueProducts.filter(p => p.cat === cat.name && p.sub === sub).map((prod, pIdx) => (<div key={pIdx} className="flex justify-between items-center text-sm p-3 bg-gray-50 rounded border border-gray-100 hover:border-gray-300 transition-colors"><span className="font-medium text-gray-700">{prod.name}</span><div className="flex items-center gap-2"><span className="text-xs text-gray-500 bg-white px-2 py-0.5 rounded border">Qty: {data.items.filter(i => i.name === prod.name).length}</span><button title="Rename Product" onClick={() => { dialogs.showPrompt("Rename Product Type:", prod.name, (newName) => { handleRenameProduct(prod.name, newName, cat.name, sub); }); }} className="text-gray-400 hover:text-blue-600 p-1 hover:bg-blue-50 rounded"><Edit size={14}/></button><button title="Delete Product" onClick={() => handleDeleteProduct(prod.name, cat.name, sub)} className="text-gray-400 hover:text-red-600 p-1 hover:bg-red-50 rounded"><Trash2 size={14}/></button></div></div>))}</div>{uniqueProducts.filter(p => p.cat === cat.name && p.sub === sub).length === 0 && (<p className="text-xs text-gray-400 italic p-2 border border-dashed rounded text-center">No products registered yet.</p>)}</div></div>))}<Button size="sm" variant="ghost" className="w-full border border-dashed bg-white hover:bg-white" onClick={() => handleAddSubCategory(cat.id)}><Plus size={14} className="mr-1"/> Add Sub-Category</Button></div></Card>))}</div>)}
 
-                  {settingsTab === 'floor' && (<div className="space-y-6">{data.floors.map((floor) => (<Card key={floor.id} className="p-0"><div className="bg-gray-50 p-4 border-b border-gray-200 flex justify-between items-center"><div className="flex items-center gap-2"><span className="font-bold">{floor.name}</span><button className="text-gray-400 hover:text-indigo-600" onClick={() => { dialogs.showPrompt("Rename Floor:", floor.name, (newName) => { handleRenameFloor(floor.id, newName); }); }}><Edit size={14}/></button><Badge>{floor.code}</Badge></div><div className="flex gap-2"><Button size="sm" variant="secondary" onClick={() => { dialogs.showPrompt("New Room Name:", "", (name) => { if(name) { const nextRoomId = generateRoomId(floor.code, data.floors.flatMap(f => f.rooms)); const newRoom = { id: nextRoomId, name, status: 'Vacant' }; setData(prev => ({...prev, floors: prev.floors.map(f => f.id === floor.id ? { ...f, rooms: [...f.rooms, newRoom] } : f)})); } }); }}>Add Room</Button><button className="text-red-400 p-2 hover:bg-red-50 rounded" onClick={() => handleDeleteFloor(floor.id)}><Trash2 size={16}/></button></div></div><div className="p-4 space-y-2">{floor.rooms.map((room) => (<div key={room.id} className="flex items-center justify-between p-3 border rounded hover:bg-gray-50"><div className="flex items-center gap-3"><span className="font-mono text-xs bg-gray-200 px-1 rounded text-gray-600">{room.id}</span><span className="font-medium">{room.name}</span><button className="text-gray-300 hover:text-indigo-600" onClick={() => { dialogs.showPrompt("Rename Room:", room.name, (newName) => { handleRenameRoom(floor.id, room.id, newName); }); }}><Edit size={12}/></button></div><div className="flex items-center gap-2"><button className="text-red-400 hover:text-red-600 ml-2" onClick={() => handleDeleteRoom(floor.id, room.id)}><Trash2 size={14}/></button></div></div>))}</div></Card>))}<Button variant="secondary" className="w-full" onClick={() => { dialogs.showPrompt("New Floor Name (e.g. 3rd Floor):", "", (name) => { if(name) { dialogs.showPrompt("Floor Code (e.g. F3):", "", (code) => { if(code) { const newId = generateNextId(data.floors, 'f'); const newFloor = { id: newId, name, code, rooms: [] }; setData(prev => ({ ...prev, floors: [...prev.floors, newFloor] })); } }); } }); }}>+ Add New Floor</Button></div>)}
+                  {settingsTab === 'floor' && (<div className="space-y-6">{data.floors.map((floor) => (<Card key={floor.id} className="p-0"><div className="bg-gray-50 p-4 border-b border-gray-200 flex justify-between items-center"><div className="flex items-center gap-2"><span className="font-bold">{floor.name}</span><button className="text-gray-400 hover:text-indigo-600" onClick={() => { dialogs.showPrompt("Rename Floor:", floor.name, (newName) => { handleRenameFloor(floor.id, newName); }); }}><Edit size={14}/></button><Badge>{floor.code}</Badge></div><div className="flex gap-2"><Button size="sm" variant="secondary" onClick={() => { dialogs.showPrompt("New Room Name:", "", (name) => { if(name) { const nextRoomId = generateRoomId(floor.code, data.floors.flatMap(f => f.rooms)); const newRoom = { id: nextRoomId, name, status: 'Vacant' }; setData(prev => ({...prev, floors: prev.floors.map(f => f.id === floor.id ? { ...f, rooms: [...f.rooms, newRoom] } : f)})); } }); }}>Add Room</Button><button className="text-red-400 p-2 hover:bg-red-50 rounded" onClick={() => handleDeleteFloor(floor.id)}><Trash2 size={16}/></button></div></div><div className="p-4 space-y-2">{floor.rooms.map((room) => (<div key={room.id} className="flex items-center justify-between p-3 border rounded hover:bg-gray-50"><div className="flex items-center gap-3"><span className="font-mono text-xs bg-gray-200 px-1 rounded text-gray-600">{room.id}</span><span className="font-medium">{room.name}</span><button className="text-gray-300 hover:text-indigo-600" onClick={() => { dialogs.showPrompt("Rename Room:", room.name, (newName) => { handleRenameRoom(floor.id, room.id, newName); }); }}><Edit size={12}/></button></div><div className="flex items-center gap-2"><button className="text-red-400 hover:text-red-600 ml-2" onClick={() => handleDeleteRoom(floor.id, room.id)}><Trash2 size={14}/></button></div></div>))}</div></Card>))}<Button variant="ghost" className="w-full py-4 border-dashed border-2 bg-white hover:bg-white text-gray-500 hover:text-indigo-600" onClick={() => { dialogs.showPrompt("New Floor Name (e.g. 3rd Floor):", "", (name) => { if(name) { dialogs.showPrompt("Floor Code (e.g. F3):", "", (code) => { if(code) { const newId = generateNextId(data.floors, 'f'); const newFloor = { id: newId, name, code, rooms: [] }; setData(prev => ({ ...prev, floors: [...prev.floors, newFloor] })); } }); } }); }}>+ Add New Floor</Button></div>)}
                   
                   {settingsTab === 'boxes' && (<div className="space-y-6"><div className="flex justify-between items-center"><h3 className="font-bold text-lg">Manage Storage Boxes</h3><Button onClick={handleAddBox}><Plus size={16}/> Add New Box</Button></div><div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">{data.boxes.map(box => (<div key={box.id} className="bg-white p-4 border rounded shadow-sm flex flex-col justify-between"><div><div className="flex justify-between items-start mb-2"><Box className="text-orange-500" /><div className="flex gap-2"><button onClick={() => { dialogs.showPrompt("Rename Box:", box.name, (newName) => { handleRenameBox(box.id, newName); }); }} className="text-gray-400 hover:text-indigo-600"><Edit size={16}/></button><button onClick={() => handleDeleteBox(box.id)} className="text-gray-400 hover:text-red-600"><Trash2 size={16}/></button></div></div><h4 className="font-bold text-gray-800">{box.name}</h4><p className="text-xs text-orange-600 font-mono">ID: {box.id}</p></div><div className="mt-4 pt-2 border-t text-xs text-gray-400">ID: {box.id}</div></div>))}</div></div>)}
 
